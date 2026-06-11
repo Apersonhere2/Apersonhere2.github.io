@@ -498,7 +498,10 @@
     </div>
 
     <div id="lobbyScreen" class="overlay">
-        <h1 id="lobbyCodeDisplay">Lobby Room Code: Connecting...</h1>
+        <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:center;">
+            <h1 id="lobbyCodeDisplay" style="margin:0;">Lobby Room Code: Connecting...</h1>
+            <button id="copyCodeBtn" class="game-button" style="display:none; padding:10px 18px; font-size:14px; background:#555; box-shadow:0 3px 0 #333;">📋 Copy Code</button>
+        </div>
         <h2 class="lobby-title" id="lobbyStatusText">Room Status: Setting up network lines...</h2>
         
         <div style="margin-top: 20px; background: #222; padding: 15px; border-radius: 8px;">
@@ -815,6 +818,19 @@
             document.getElementById('lobbyScreen').style.display = "none";
             document.getElementById('menu').style.display = "flex";
             gameState = "MENU";
+        };
+
+        // Copy room code to clipboard
+        document.getElementById('copyCodeBtn').onclick = () => {
+            navigator.clipboard.writeText(myLobbyPeerID).then(() => {
+                const btn = document.getElementById('copyCodeBtn');
+                btn.innerText = '✔ Copied!';
+                btn.style.background = '#28a745';
+                setTimeout(() => {
+                    btn.innerText = '📋 Copy Code';
+                    btn.style.background = '#555';
+                }, 2000);
+            });
         };
 
         // Launch Game Trigger Event handled exclusively by Room Host
@@ -1911,12 +1927,23 @@
             if (targetRoomCode === null) {
                 // Host Mode: Generate random room code via PeerJS brokering services
                 player.id = "host_" + Math.floor(Math.random() * 89999 + 10000);
-                peerInstance = new Peer(player.id);
+                peerInstance = new Peer(player.id, {
+                    config: {
+                        iceServers: [
+                            { urls: "stun:stun.l.google.com:19302" },
+                            { urls: "stun:stun1.l.google.com:19302" },
+                            { urls: "stun:stun2.l.google.com:19302" },
+                            // If players on certain home networks can't connect, add a
+                            // free TURN relay here from openrelay.metered.ca
+                        ]
+                    }
+                });
                 
                 peerInstance.on('open', (id) => {
                     myLobbyPeerID = id;
                     document.getElementById('lobbyCodeDisplay').innerText = `Room Code: ${id}`;
                     document.getElementById('lobbyStatusText').innerText = "Status: Waiting for squads to connect...";
+                    document.getElementById('copyCodeBtn').style.display = "inline-block";
                     renderLobbyListHTML();
                 });
 
@@ -1935,7 +1962,15 @@
             } else {
                 // Client Connection Channel Router Entry Phase
                 player.id = "client_" + Math.floor(Math.random() * 89999 + 10000);
-                peerInstance = new Peer(player.id);
+                peerInstance = new Peer(player.id, {
+                    config: {
+                        iceServers: [
+                            { urls: "stun:stun.l.google.com:19302" },
+                            { urls: "stun:stun1.l.google.com:19302" },
+                            { urls: "stun:stun2.l.google.com:19302" },
+                        ]
+                    }
+                });
 
                 peerInstance.on('open', (id) => {
                     myLobbyPeerID = id;
@@ -2244,6 +2279,7 @@
 
             localClassSelected = false;
             document.getElementById('waitingScreen').style.display = "none";
+            document.getElementById('copyCodeBtn').style.display = "none";
             isMultiplayer = false;
             isHost = false;
         }

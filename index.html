@@ -1,0 +1,2255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Undead Massacre v1.3Beta - Multiplayer Edition</title>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <style>
+        /* FULL CSS RESET AND LAYOUT */
+        body { 
+            margin: 0; 
+            padding: 0;
+            overflow: hidden; 
+            background-color: #1a1a1a; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            color: #ffffff; 
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #gameCanvas { 
+            display: block; 
+            background-color: #000;
+        }
+
+        /* MAIN UI ELEMENTS */
+        #ui {
+            position: absolute; 
+            top: 20px; 
+            left: 20px;
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px;
+            pointer-events: none; 
+            z-index: 10;
+        }
+
+        .game-button { 
+            pointer-events: auto; 
+            padding: 12px 25px; 
+            cursor: pointer; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 6px;
+            font-weight: bold; 
+            font-size: 16px; 
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 0 #0056b3;
+            text-transform: uppercase;
+        }
+        .game-button:hover { 
+            background: #0056b3; 
+            transform: translateY(-2px); 
+            box-shadow: 0 6px 0 #004085; 
+        }
+        .game-button:active { 
+            transform: translateY(2px); 
+            box-shadow: 0 0px 0 #004085; 
+        }
+
+        /* SELECTION CARDS */
+        #modeSelection, #mpSelection, #classSelection, #lobbyScreen {
+            display: none;
+            background: rgba(10, 10, 10, 0.98);
+            z-index: 200;
+        }
+        .card-container {
+            display: flex; 
+            gap: 20px; 
+            margin-top: 40px;
+        }
+        .class-card {
+            width: 280px; 
+            min-height: 380px;
+            background: #151515; 
+            border: 3px solid #333;
+            border-radius: 15px; 
+            padding: 20px;
+            cursor: pointer; 
+            transition: all 0.3s ease;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
+            text-align: center;
+            justify-content: center;
+        }
+        .class-card:hover {
+            border-color: #007bff; 
+            transform: translateY(-10px);
+            background: #1e1e1e;
+        }
+        .pos { color: #00ff00; font-weight: bold; margin: 2px 0; font-size: 14px;}
+        .neg { color: #ff4444; font-weight: bold; margin: 2px 0; font-size: 14px;}
+        .raw-stats { 
+            margin-top: 15px; 
+            padding-top: 10px; 
+            border-top: 1px solid #444; 
+            width: 100%; 
+            font-size: 13px; 
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        /* INPUT CONTROLS */
+        .lobby-input {
+            padding: 12px;
+            font-size: 18px;
+            border-radius: 6px;
+            border: 2px solid #444;
+            background: #222;
+            color: #fff;
+            text-align: center;
+            margin-bottom: 15px;
+            width: 280px;
+        }
+
+        /* SCREEN OVERLAYS */
+        .overlay {
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background: rgba(15, 15, 15, 0.95);
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            text-align: center; 
+            z-index: 100;
+        }
+
+        #menu { display: flex; }
+        #achievementsMenu { display: none; background: rgba(10, 10, 10, 0.98); }
+        #bestiaryMenu { display: none; background: rgba(10, 10, 10, 0.98); }
+        
+        #deathScreen { 
+            display: none; 
+            background: rgba(40, 0, 0, 0.92); 
+        }
+        
+        #pauseOverlay {
+            display: none;
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            z-index: 150;
+        }
+
+        /* TYPOGRAPHY */
+        h1 { 
+            font-size: 72px; 
+            margin: 0; 
+            color: #ff4444; 
+            text-transform: uppercase; 
+            letter-spacing: 8px; 
+            text-shadow: 4px 4px 0px #440000;
+        }
+        h2.lobby-title {
+            font-size: 36px;
+            color: #fff;
+            margin-bottom: 5px;
+        }
+        h3 { 
+            font-size: 22px; 
+            margin: 10px 0 40px 0; 
+            color: #aaa; 
+            font-style: italic; 
+        }
+
+        .stat-line { font-size: 24px; margin: 10px 0; color: #eee; }
+        .menu-stats { color: #ffd700; font-size: 18px; margin-bottom: 5px; font-weight: bold; }
+
+        /* NOTIFICATION STACK SYSTEM */
+        #notificationStack {
+            position: fixed; 
+            bottom: 20px; 
+            left: 20px;
+            display: flex; 
+            flex-direction: column-reverse; 
+            gap: 12px;
+            pointer-events: none; 
+            z-index: 5000;
+        }
+
+        .notif-box {
+            background: #2a2a2a; 
+            border-left: 6px solid #ffd700;
+            padding: 18px 25px; 
+            border-radius: 4px; 
+            color: white;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+            min-width: 300px;
+            animation: notifSlideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            position: relative;
+        }
+
+        @keyframes notifSlideIn {
+            from { transform: translateX(-130%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* LOBBY PLAYER LIST */
+        #lobbyPlayerList {
+            background: #111;
+            border: 2px solid #333;
+            border-radius: 8px;
+            width: 450px;
+            padding: 15px;
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            text-align: left;
+        }
+        .lobby-player-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: #1d1d1d;
+            border-radius: 4px;
+        }
+        .player-color-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid #000;
+        }
+
+        /* BESTIARY & PROGRESS BARS */
+        #bestiaryContent {
+            display: flex; 
+            gap: 30px; 
+            background: #050505; 
+            border: 2px solid #333;
+            padding: 35px; 
+            width: 920px; 
+            height: 520px; 
+            text-align: left;
+            border-radius: 12px;
+        }
+        #zombieIcons {
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 20px; 
+            width: 380px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        .z-icon {
+            background: #151515; 
+            border: 2px solid #444; 
+            border-radius: 10px;
+            height: 130px; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            transition: all 0.3s ease; 
+            position: relative; 
+            flex-direction: column;
+        }
+        .z-icon:hover:not(.locked) { 
+            border-color: #007bff; 
+            background: #222; 
+            transform: scale(1.03);
+        }
+        .z-icon.selected { 
+            border-color: #00ff00; 
+            background: #1a2a1a; 
+        }
+        
+        .z-icon.locked { 
+            cursor: default; 
+            opacity: 0.6; 
+        }
+        .z-icon.locked .lock-text { 
+            color: #444; 
+            font-size: 48px; 
+            font-weight: bold; 
+        }
+
+        .prog-container {
+            position: absolute; 
+            bottom: 10px; 
+            width: 85%; 
+            height: 6px; 
+            background: #222; 
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .prog-fill { 
+            height: 100%; 
+            background: #ff4444; 
+            width: 0%; 
+            transition: width 0.4s ease;
+        }
+
+        #zombieDetails { 
+            flex: 1; 
+            padding: 30px; 
+            background: #111; 
+            border-radius: 10px; 
+            border: 1px solid #222; 
+            box-shadow: inset 0 0 20px #000;
+        }
+
+        #achList {
+            display: flex; 
+            flex-direction: column; 
+            gap: 15px;
+            max-height: 60vh; 
+            overflow-y: auto; 
+            padding: 25px;
+            width: 500px; 
+            border: 2px solid #333; 
+            background: #050505;
+            border-radius: 8px;
+        }
+        .ach-item {
+            background: #151515; 
+            padding: 20px; 
+            border-radius: 6px;
+            text-align: left; 
+            border-left: 5px solid #444; 
+            transition: 0.4s ease;
+        }
+        .ach-item.unlocked { 
+            border-left-color: #ffd700; 
+            background: #1a1a0a; 
+        }
+
+        #version { 
+            position: absolute; 
+            bottom: 20px; 
+            right: 25px; 
+            color: #444; 
+            font-size: 14px; 
+            font-weight: bold; 
+        }
+
+        /* BOSS ALERT */
+        #bossWarning {
+            position: absolute;
+            top: 20%;
+            width: 100%;
+            text-align: center;
+            color: #ff0000;
+            font-size: 50px;
+            font-weight: bold;
+            text-shadow: 0 0 20px #000;
+            display: none;
+            z-index: 5;
+            pointer-events: none;
+            animation: pulseRed 1s infinite alternate;
+        }
+        @keyframes pulseRed {
+            from { opacity: 0.5; transform: scale(1); }
+            to { opacity: 1; transform: scale(1.1); }
+        }
+
+        /* UPGRADE OVERLAY */
+        #upgradeSelection {
+            display: none;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 300;
+        }
+
+        /* ABILITY HUD */
+        #abilityHUD {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            pointer-events: none;
+        }
+
+        .ability-slot {
+            width: 60px;
+            height: 60px;
+            background: rgba(20, 20, 20, 0.8);
+            border: 2px solid #444;
+            border-radius: 8px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .ability-slot.active { border-color: #007bff; color: #fff; }
+
+        .cooldown-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 123, 255, 0.4);
+            height: 0%; /* Dynamic */
+        }
+
+        .key-hint {
+            position: absolute;
+            top: -25px;
+            width: 100%;
+            text-align: center;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        /* SPECTATOR INTERFACE OVERLAY */
+        #spectatorHUD {
+            display: none;
+            position: absolute;
+            bottom: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #ff4444;
+            padding: 10px 20px;
+            border-radius: 8px;
+            z-index: 120;
+            align-items: center;
+            gap: 20px;
+            pointer-events: auto;
+        }
+        #spectatorHUD span {
+            font-weight: bold;
+            font-size: 18px;
+            color: #ff4444;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <button id="pauseBtnUI" class="game-button" style="display:none;">Pause (P / ESC)</button>
+        <div id="stats" style="display:none;">
+            <div style="font-size: 32px; font-weight: bold; color: #fff; text-shadow: 2px 2px 0 #000;">Score: <span id="score">0</span></div>
+            <div style="font-size: 18px; color: #00ff00; font-weight: bold;">Kills: <span id="totalKills">0</span></div>
+            <div id="bossStatus" style="color: #ff4444; font-weight: bold; display: none; font-size: 14px;">BOSS ACTIVE - SPAWN RATES REDUCED</div>
+        </div>
+    </div>
+
+    <div id="notificationStack"></div>
+    <div id="bossWarning">A GIANT APPROACHES!</div>
+
+    <div id="menu" class="overlay">
+        <h1>Undead Massacre</h1>
+        <h3>Made by Aph!</h3>
+        <div id="hsLabel" class="menu-stats">High Score: 0</div>
+        <div id="maxKillsLabel" class="menu-stats">Most Kills (Single Run): 0</div>
+        <div id="lifetimeKillsLabel" class="menu-stats">Total Lifetime Kills: 0</div>
+        
+        <button id="playBtn" class="game-button" style="font-size: 28px; padding: 20px 60px; margin-top: 30px;">START MASSACRE</button>
+        <button id="viewBestBtn" class="game-button" style="margin-top: 20px; background: #880000; width: 300px;">Encyclopedia</button>
+        <button id="viewAchBtn" class="game-button" style="margin-top: 15px; background: #333; width: 300px;">Achievements</button>
+        <div id="version">v1.3Beta</div>
+    </div>
+
+    <div id="modeSelection" class="overlay">
+        <h1>Choose Game Mode</h1>
+        <div class="card-container">
+            <div class="class-card" id="chooseSingleplayer">
+                <h2 style="color: #00ffff; margin: 10px 0;">Singleplayer</h2>
+                <div style="color: #aaa; margin-top: 10px;">Fight the endless hordes alone. Standard survival parameters.</div>
+            </div>
+            <div class="class-card" id="chooseMultiplayer">
+                <h2 style="color: #ff4444; margin: 10px 0;">Multiplayer</h2>
+                <div style="color: #aaa; margin-top: 10px;">Form a squad of up to 6 players using real-time Peer-to-Peer matchmaking.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mpSelection" class="overlay">
+        <h1>Multiplayer Options</h1>
+        <div class="card-container">
+            <div class="class-card" id="chooseHost">
+                <h2 style="color: #00ff00; margin: 10px 0;">Host Lobby</h2>
+                <div style="color: #aaa; margin-top: 10px;">Generate a unique Room ID code and wait for allies to connect.</div>
+            </div>
+            <div class="class-card" id="chooseJoin">
+                <h2 style="color: #ffd700; margin: 10px 0;">Join Lobby</h2>
+                <div style="color: #aaa; margin-top: 10px;">Enter a Room ID key provided by your host to join an active session.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="lobbyScreen" class="overlay">
+        <h1 id="lobbyCodeDisplay">Lobby Room Code: Connecting...</h1>
+        <h2 class="lobby-title" id="lobbyStatusText">Room Status: Setting up network lines...</h2>
+        
+        <div style="margin-top: 20px; background: #222; padding: 15px; border-radius: 8px;">
+            <label style="font-weight: bold; font-size: 18px; margin-right: 10px;">Customize Player Color: </label>
+            <input type="color" id="lobbyColorPicker" value="#007bff" style="cursor: pointer; vertical-align: middle;">
+        </div>
+
+        <div id="joinCodeForm" style="display: none; margin-top: 20px;">
+            <input type="text" id="joinRoomInput" class="lobby-input" placeholder="Paste Host Room Code Here"><br>
+            <button id="submitJoinCodeBtn" class="game-button">Establish Connection</button>
+        </div>
+
+        <div id="lobbyPlayerList">
+            <div style="font-weight: bold; border-bottom: 1px solid #444; padding-bottom: 5px; color: #aaa;">Connected Survivors (Max 6)</div>
+            </div>
+
+        <button id="lobbyStartGameBtn" class="game-button" style="font-size: 22px; padding: 15px 40px; display: none; background: #28a745; box-shadow: 0 4px 0 #1e7e34;">Launch Massacre</button>
+        <button id="lobbyLeaveBtn" class="game-button" style="margin-top: 15px; background: #444; box-shadow: 0 4px 0 #222;">Leave Room</button>
+    </div>
+
+    <div id="classSelection" class="overlay">
+        <h1>Choose Your Card</h1>
+        <div class="card-container">
+            <div class="class-card" onclick="selectClass('Mobility')">
+                <div style="width:28px; height:28px; background:#90EE90; border:2px solid #000; margin-bottom:10px;"></div>
+                <h2 style="color: #00ffff; margin: 10px 0;">Mobility</h2>
+                <div class="pos">+ Increased Speed</div>
+                <div class="pos">+ Faster Fire Rate</div>
+                <div class="neg">- Halved Damage</div>
+                <div class="raw-stats">
+                    <b>SPD:</b> 5.2 (Fast)<br>
+                    <b>DMG:</b> 0.5 (Weak)<br>
+                    <b>RATE:</b> 120ms (Rapid)
+                </div>
+            </div>
+            <div class="class-card" onclick="selectClass('Regular')">
+                <div style="width:28px; height:28px; background:#28a745; border:2px solid #000; margin-bottom:10px;"></div>
+                <h2 style="color: #ffffff; margin: 10px 0;">Regular</h2>
+                <div style="color: #777; margin-top: 10px;">Standard Hunter</div>
+                <div class="raw-stats">
+                    <b>SPD:</b> 3.5 (Normal)<br>
+                    <b>DMG:</b> 1.0 (Normal)<br>
+                    <b>RATE:</b> 200ms (Normal)
+                </div>
+            </div>
+            <div class="class-card" onclick="selectClass('Precision')">
+                <div style="width:28px; height:28px; background:#004d00; border:2px solid #000; margin-bottom:10px;"></div>
+                <h2 style="color: #ffcc00; margin: 10px 0;">Precision</h2>
+                <div class="pos">+ Double Damage</div>
+                <div class="neg">- Slower Movement</div>
+                <div class="neg">- Slower Fire Rate</div>
+                <div class="raw-stats">
+                    <b>SPD:</b> 2.4 (Slow)<br>
+                    <b>DMG:</b> 2.0 (High)<br>
+                    <b>RATE:</b> 450ms (Slow)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Waiting for all players to pick a class -->
+    <div id="waitingScreen" class="overlay" style="display:none; background: rgba(10,10,10,0.98);">
+        <h1 style="color:#ffd700;">Class Selected!</h1>
+        <h3 id="waitingStatusText">Waiting for other survivors to choose...</h3>
+        <div id="waitingPlayerList" style="margin-top:20px; display:flex; flex-direction:column; gap:10px; min-width:320px;"></div>
+    </div>
+
+    <div id="bestiaryMenu" class="overlay">
+        <h1>Zombie Encyclopedia</h1>
+        <div id="bestiaryContent">
+            <div id="zombieIcons"></div>
+            <div id="zombieDetails">
+                <h2 id="detName" style="color: #ff4444; margin-top: 0; font-size: 32px;">Unknown Specimen</h2>
+                <div id="detBody">
+                    <p style="color: #777; font-style: italic; font-size: 18px; margin-top: 40px; line-height: 1.5;">
+                        Defeat 50 of a specific zombie type to unlock its genetic classification and biological data. (Giants require 1 kill).
+                    </p>
+                </div>
+            </div>
+        </div>
+        <button id="closeBestBtn" class="game-button" style="margin-top: 30px;">Return to Menu</button>
+    </div>
+
+    <div id="pauseOverlay">
+        <h1 style="color: white; font-size: 80px;">GAME PAUSED</h1>
+        <button id="resumeBtn" class="game-button" style="margin-top: 40px; width: 250px;">RESUME GAME</button>
+        <button id="quitBtn" class="game-button" style="margin-top: 20px; width: 250px; background: #444;">QUIT TO MENU</button>
+    </div>
+
+    <div id="achievementsMenu" class="overlay">
+        <h1>Hall of Fame</h1>
+        <div id="achList"></div>
+        <button id="closeAchBtn" class="game-button" style="margin-top: 30px;">Back to Menu</button>
+    </div>
+
+    <div id="deathScreen" class="overlay">
+        <h1 style="font-size: 80px; margin-bottom: 10px;" id="deathScreenTitle">YOU WERE OVERRUN</h1>
+        <div class="stat-line">Final Score: <span id="finalScore">0</span></div>
+        <div class="stat-line">Zombies Slain: <span id="finalKills">0</span></div>
+        <div id="newHighScoreNote" style="color: #ffd700; font-weight: bold; display: none; margin: 15px 0;">NEW RECORD!</div>
+        <button id="restartBtn" class="game-button" style="margin-top: 30px; font-size: 24px; background: #880000;">Try Again</button>
+        <button id="deathMenuBtn" class="game-button" style="margin-top: 10px; background: #444;">Main Menu</button>
+    </div>
+
+    <div id="upgradeSelection" class="overlay">
+        <h1 style="color: #ffd700;">BOSS DEFEATED: CHOOSE AN ABILITY</h1>
+        <div class="card-container" id="upgradeCards"></div>
+    </div>
+
+    <div id="spectatorHUD">
+        <button id="specPrevBtn" class="game-button" style="padding: 6px 15px;">&larr;</button>
+        <span>Spectating: <span id="specPlayerName">None</span></span>
+        <button id="specNextBtn" class="game-button" style="padding: 6px 15px;">&rarr;</button>
+    </div>
+
+    <div id="abilityHUD">
+        <div class="ability-slot" id="slot-Q"><div class="key-hint">Q</div><div class="cooldown-overlay" id="cd-Q"></div><span id="label-Q">---</span></div>
+        <div class="ability-slot" id="slot-E"><div class="key-hint">E</div><div class="cooldown-overlay" id="cd-E"></div><span id="label-E">---</span></div>
+        <div class="ability-slot" id="slot-R"><div class="key-hint">R</div><div class="cooldown-overlay" id="cd-R"></div><span id="label-R">---</span></div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        /* GAME DATA */
+        const ZOMBIE_DATA = [
+            { id: "fast_reg", name: "Speedy", hp: 1, speed: 2.2, size: 28, color: '#90EE90', score: 20, desc: "Lightweight little guy, also very agile.", threshold: 50 },
+            { id: "norm_reg", name: "Zedby", hp: 2, speed: 1.2, size: 28, color: '#28a745', score: 10, desc: "The original zombie.", threshold: 50 },
+            { id: "slow_reg", name: "Lump", hp: 3, speed: 0.8, size: 28, color: '#004d00', score: 15, desc: "At least they're older than a grandma, though they're tough.", threshold: 50 },
+            { id: "fast_big", name: "Speedrun", hp: 3, speed: 1.8, size: 55, color: '#90EE90', score: 40, desc: "Big and fast, just like me.", threshold: 50 },
+            { id: "norm_big", name: "Mutant", hp: 4, speed: 1.1, size: 55, color: '#228b22', score: 50, desc: "First mutation, what else to say?", threshold: 50 },
+            { id: "slow_big", name: "Stone", hp: 5, speed: 0.7, size: 55, color: '#006400', score: 60, desc: "A big guy, although slow, they'll tank a lot.", threshold: 50 },
+            { id: "norm_giant", name: "Zedby Giant", hp: 50, speed: 1.1, size: 100, color: '#28a745', score: 0, desc: "A massive variant of the common Zedby. Extremely durable.", isBoss: true, threshold: 1 },
+            { id: "fast_giant", name: "Speedy Giant", hp: 35, speed: 3.8, size: 90, color: '#90EE90', score: 0, desc: "A faster boss. More agile than a Regular survivor, but can be outrun by Mobility classes.", isBoss: true, threshold: 1 },
+            { id: "slow_giant", name: "Lump Giant", hp: 200, speed: 0.6, size: 140, color: '#004d00', score: 0, desc: "A mountain of undead flesh. Takes hundreds of rounds to put down.", isBoss: true, threshold: 1 }
+        ];
+
+        const ACHIEVEMENT_LIST = [
+            { id: 'gist', title: "Getting the gist of it", desc: "Reach 500 points", scoreGoal: 500 },
+            { id: 'blaze1', title: "Guns blazing", desc: "Reach 1,000 points", scoreGoal: 1000 },
+            { id: 'blaze2', title: "Guns blazing 2", desc: "Reach 2,000 points", scoreGoal: 2000 },
+            { id: 'blaze3', title: "Skilled gunman", desc: "Reach 5,000 points", scoreGoal: 5000 },
+            { id: 'blaze4', title: "Dedicated hunter", desc: "Reach 10,000 points", scoreGoal: 10000 },
+            { id: '1kill', title: "First kill", desc: "Kill your first zombie", killGoal: 1 },
+            { id: 'slayer1', title: "Homicide", desc: "Kill 50 zombies in one run", killGoal: 50 },
+            { id: 'slayer2', title: "Knees sweaty and heavy", desc: "Kill 100 zombies in one run", killGoal: 100 },
+            { id: 'slayer3', title: "Used to it", desc: "Kill 200 zombies in one run", killGoal: 200 },
+            { id: 'slayer4', title: "Full time job", desc: "Kill 500 zombies in one run", killGoal: 500 },
+            { id: 'slayer5', title: "I, the zombie hunter", desc: "Kill 1000 zombies in one run", killGoal: 1000 },
+            { id: 'kill_zedby_giant', title: "Man v.s. Mutant", desc: "Defeat the Zedby Giant", bossId: 'norm_giant' },
+            { id: 'kill_speedy_giant', title: "Cant Catch Me", desc: "Defeat the Speedy Giant", bossId: 'fast_giant' },
+            { id: 'kill_lump_giant', title: "Big Beast", desc: "Defeat the Lump Giant", bossId: 'slow_giant' }
+        ];
+
+        /* ENGINE VARIABLES */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const WORLD_SIZE = 3000;
+
+        let highScore = parseInt(localStorage.getItem('undead_hs')) || 0;
+        let maxKills = parseInt(localStorage.getItem('undead_mk')) || 0;
+        let lifetimeKills = parseInt(localStorage.getItem('undead_tk')) || 0;
+        let unlockedAchievements = JSON.parse(localStorage.getItem('undead_ach')) || [];
+        let zombieKillCounts = JSON.parse(localStorage.getItem('undead_zkills')) || {};
+
+        let gameState = "MENU";
+        let score = 0;
+        let currentRunKills = 0;
+        let isPaused = false;
+        let gameOver = false;
+        let lastFireTime = 0;
+        let bossActive = false;
+        let bossesSpawnedThisRun = { norm: false, fast: false, slow: false };
+
+        let activeNovaCircles = [];
+
+        // Main local self character
+        const player = {
+            id: "local_player",
+            name: "Host",
+            x: WORLD_SIZE / 2,
+            y: WORLD_SIZE / 2,
+            vx: 0, 
+            vy: 0, 
+            speed: 3.5,
+            friction: 0.85, 
+            size: 32,
+            color: '#007bff',
+            damage: 1,
+            fireRate: 200,
+            dead: false
+        };
+
+        const keys = {};
+        const bullets = [];
+        const zombies = [];
+        const buildings = [];
+        
+        let mouseX = 0, mouseY = 0, mouseIsPressed = false;
+
+        /* NEW NETWORKING ARCHITECTURE CHANNELS */
+        let isMultiplayer = false;
+        let isHost = false;
+        let peerInstance = null;
+        let netConnections = []; // Holds references to connected communication links
+        let remotePlayers = {};  // Stores live key-value status dictionary of connected allies
+        let myLobbyPeerID = "";
+        let mpLobbySeed = 12345;  // To make sure environmental maps synchronize flawlessly across machines
+
+        // Spectator System data properties
+        let activeSpectatorTargetID = null;
+
+        // Class selection readiness tracking for multiplayer
+        let localClassSelected = false;
+
+        /* NOTIFICATION SYSTEM */
+        function triggerNotification(title, message, color = "#ffd700") {
+            const stack = document.getElementById('notificationStack');
+            const notif = document.createElement('div');
+            notif.className = 'notif-box';
+            notif.style.borderLeftColor = color;
+            notif.innerHTML = `
+                <div style="font-weight:bold; color:${color}; font-size:17px; text-transform:uppercase;">${title}</div>
+                <div style="font-size:14px; color:#ddd; margin-top:4px; line-height:1.2;">${message}</div>
+            `;
+            stack.appendChild(notif);
+            
+            setTimeout(() => {
+                notif.style.opacity = "0"; 
+                notif.style.transform = "translateX(-30px)"; 
+                notif.style.transition = "all 0.6s ease-in";
+                setTimeout(() => notif.remove(), 600);
+            }, 4500);
+        }
+
+        /* MENU LOGIC NAVIGATION FLOWS */
+        function updateMainStats() {
+            document.getElementById('hsLabel').innerText = "High Score: " + highScore;
+            document.getElementById('maxKillsLabel').innerText = "Most Kills (Single Run): " + maxKills;
+            document.getElementById('lifetimeKillsLabel').innerText = "Total Lifetime Kills: " + lifetimeKills;
+        }
+        updateMainStats();
+
+        // 1. Initial Launch Button Routing
+        document.getElementById('playBtn').onclick = () => {
+            document.getElementById('menu').style.display = "none";
+            document.getElementById('modeSelection').style.display = "flex";
+        };
+
+        // 2. Mode Configuration Intercepts
+        document.getElementById('chooseSingleplayer').onclick = () => {
+            isMultiplayer = false;
+            isHost = false;
+            player.name = "Survivor";
+            document.getElementById('modeSelection').style.display = "none";
+            document.getElementById('classSelection').style.display = "flex";
+        };
+
+        document.getElementById('chooseMultiplayer').onclick = () => {
+            isMultiplayer = true;
+            document.getElementById('modeSelection').style.display = "none";
+            document.getElementById('mpSelection').style.display = "flex";
+        };
+
+        // 3. Hosting vs Joining Setup
+        document.getElementById('chooseHost').onclick = () => {
+            isHost = true;
+            player.name = "Host";
+            document.getElementById('mpSelection').style.display = "none";
+            document.getElementById('lobbyScreen').style.display = "flex";
+            document.getElementById('joinCodeForm').style.display = "none";
+            document.getElementById('lobbyStartGameBtn').style.display = "block";
+            initializePeerConnectionChannel();
+        };
+
+        document.getElementById('chooseJoin').onclick = () => {
+            isHost = false;
+            player.name = "Guest_" + Math.floor(Math.random() * 900 + 100);
+            document.getElementById('mpSelection').style.display = "none";
+            document.getElementById('lobbyScreen').style.display = "flex";
+            document.getElementById('joinCodeForm').style.display = "block";
+            document.getElementById('lobbyStartGameBtn').style.display = "none";
+            document.getElementById('lobbyCodeDisplay').innerText = "Join Setup Status Grid";
+            document.getElementById('lobbyStatusText').innerText = "Awaiting Room Key Input Entry Parameters...";
+            renderLobbyListHTML();
+        };
+
+        // Color picking inside the lobby system tracking listeners
+        document.getElementById('lobbyColorPicker').oninput = (e) => {
+            player.color = e.target.value;
+            if (isMultiplayer) {
+                broadcastP2PMessage({
+                    type: "LOBBY_UPDATE",
+                    id: player.id,
+                    name: player.name,
+                    color: player.color
+                });
+                renderLobbyListHTML();
+            }
+        };
+
+        // Submission Event for Room Codes
+        document.getElementById('submitJoinCodeBtn').onclick = () => {
+            const codeInput = document.getElementById('joinRoomInput').value.trim();
+            if(!codeInput) return alert("Please enter a valid connection code.");
+            
+            document.getElementById('lobbyStatusText').innerText = "Connecting to Host Node System...";
+            initializePeerConnectionChannel(codeInput);
+        };
+
+        // Leaving Lobby Routing
+        document.getElementById('lobbyLeaveBtn').onclick = () => {
+            disconnectP2PNetwork();
+            document.getElementById('lobbyScreen').style.display = "none";
+            document.getElementById('menu').style.display = "flex";
+            gameState = "MENU";
+        };
+
+        // Launch Game Trigger Event handled exclusively by Room Host
+        document.getElementById('lobbyStartGameBtn').onclick = () => {
+            if(!isHost) return;
+            mpLobbySeed = Math.floor(Math.random() * 999999);
+
+            // Reset all ready states before sending everyone to class select
+            localClassSelected = false;
+            Object.values(remotePlayers).forEach(p => { p.ready = false; });
+
+            broadcastP2PMessage({
+                type: "LOAD_CLASS_SELECT",
+                seed: mpLobbySeed
+            });
+
+            document.getElementById('lobbyScreen').style.display = "none";
+            document.getElementById('classSelection').style.display = "flex";
+        };
+        
+        function selectClass(type) {
+            if (type === 'Mobility') {
+                player.speed = 5.2; 
+                player.damage = 0.5;
+                player.fireRate = 120;
+            } else if (type === 'Precision') {
+                player.speed = 2.4; 
+                player.damage = 2; 
+                player.fireRate = 450;
+            } else {
+                player.speed = 3.5;
+                player.damage = 1;
+                player.fireRate = 200;
+            }
+            document.getElementById('classSelection').style.display = "none";
+
+            if (isMultiplayer) {
+                localClassSelected = true;
+                broadcastP2PMessage({
+                    type: "PLAYER_CLASS_READY",
+                    id: player.id,
+                    speed: player.speed,
+                    damage: player.damage,
+                    fireRate: player.fireRate
+                });
+
+                // Show waiting screen while others pick
+                document.getElementById('waitingScreen').style.display = "flex";
+                updateWaitingList();
+
+                // Host checks immediately in case everyone was already ready
+                if (isHost) {
+                    checkAllPlayersReady();
+                }
+                // Clients just wait — they'll receive ALL_READY_START from host
+            } else {
+                startNewGame();
+            }
+        }
+
+        function updateWaitingList() {
+            const list = document.getElementById('waitingPlayerList');
+            list.innerHTML = '';
+            // Local player row
+            const localRow = document.createElement('div');
+            localRow.className = 'lobby-player-row';
+            localRow.innerHTML = `<span><b>${player.name}</b> (You)</span> <span style="color:${localClassSelected ? '#00ff00' : '#aaa'};">${localClassSelected ? '✔ Ready' : '⏳ Picking...'}</span>`;
+            list.appendChild(localRow);
+            // Remote players
+            Object.values(remotePlayers).forEach(p => {
+                const row = document.createElement('div');
+                row.className = 'lobby-player-row';
+                row.innerHTML = `<span>${p.name}</span> <span style="color:${p.ready ? '#00ff00' : '#aaa'};">${p.ready ? '✔ Ready' : '⏳ Picking...'}</span>`;
+                list.appendChild(row);
+            });
+        }
+
+        function checkAllPlayersReady() {
+            if (!isHost) return;
+            const allRemoteReady = Object.values(remotePlayers).every(p => p.ready);
+            if (localClassSelected && allRemoteReady) {
+                // Everyone is in — fire the start signal
+                broadcastP2PMessage({ type: "ALL_READY_START" });
+                document.getElementById('waitingScreen').style.display = "none";
+                startNewGame();
+            }
+        }
+
+        function startNewGame() {
+            gameState = "PLAYING"; 
+            gameOver = false; 
+            isPaused = false; 
+            score = 0; 
+            currentRunKills = 0;
+            bossActive = false;
+            bossesSpawnedThisRun = { norm: false, fast: false, slow: false };
+            
+            player.dead = false;
+            player.x = WORLD_SIZE / 2; 
+            player.y = WORLD_SIZE / 2;
+            player.vx = 0;
+            player.vy = 0;
+
+            activeNovaCircles = [];
+            abilityCooldowns = { Q: 0, E: 0, R: 0 };
+            activeEffects = { overdrive: 0, lastStand: 0, bloodRounds: 0, invincibility: 0 };
+            activeSpectatorTargetID = null;
+
+            // Clean down spectator panels
+            document.getElementById('spectatorHUD').style.display = "none";
+            
+            keysToSlots.forEach(key => {
+                const slot = document.getElementById(`slot-${key}`);
+                if(slot) slot.classList.remove('active');
+                const label = document.getElementById(`label-${key}`);
+                if(label) label.innerText = "---";
+                const cd = document.getElementById(`cd-${key}`);
+                if(cd) cd.style.height = "0%";
+            });
+
+            document.getElementById('score').innerText = "0";  
+            document.getElementById('totalKills').innerText = "0";
+            document.getElementById('bossStatus').style.display = "none";
+            
+            bullets.length = 0; 
+            zombies.length = 0; 
+            buildings.length = 0; 
+            
+            document.getElementById('deathScreen').style.display = "none";
+            document.getElementById('pauseOverlay').style.display = "none";
+            document.getElementById('pauseBtnUI').style.display = "block";
+            document.getElementById('stats').style.display = "block";
+            
+            // Re-seed terrain dynamically to mirror geometry matches perfectly
+            generateEnvironment(mpLobbySeed); 
+
+            if (!isMultiplayer || isHost) {
+                spawnZombieCycle();
+            }
+        }
+
+        // Unified Replay Event Rules
+        document.getElementById('restartBtn').onclick = () => {
+            document.getElementById('deathScreen').style.display = "none";
+            if (isMultiplayer) {
+                // Return explicitly back into active room staging lobby
+                localClassSelected = false;
+                Object.values(remotePlayers).forEach(p => { p.ready = false; });
+                document.getElementById('lobbyScreen').style.display = "flex";
+                gameState = "LOBBY";
+                renderLobbyListHTML();
+                broadcastP2PMessage({
+                    type: "RETURN_TO_LOBBY",
+                    id: player.id
+                });
+            } else {
+                document.getElementById('classSelection').style.display = "flex";
+            }
+        };
+
+        function togglePause() {
+            if (gameState !== "PLAYING") return;
+            
+            if (isMultiplayer) {
+                if (isHost) {
+                    // Host completely pauses reality for every instance
+                    isPaused = !isPaused;
+                    broadcastP2PMessage({
+                        type: "HOST_PAUSE_CMD",
+                        state: isPaused
+                    });
+                    document.getElementById('pauseOverlay').style.display = isPaused ? "flex" : "none";
+                } else {
+                    // Local user menu popup interface trigger, game engine flows continuously
+                    const checkUI = document.getElementById('pauseOverlay').style.display;
+                    document.getElementById('pauseOverlay').style.display = (checkUI === "flex") ? "none" : "flex";
+                }
+            } else {
+                isPaused = !isPaused; 
+                document.getElementById('pauseOverlay').style.display = isPaused ? "flex" : "none";
+            }
+        }
+
+        document.getElementById('pauseBtnUI').onclick = togglePause;
+        document.getElementById('resumeBtn').onclick = togglePause;
+        
+        document.getElementById('quitBtn').onclick = () => {
+            document.getElementById('pauseOverlay').style.display = "none";
+            if (isMultiplayer) {
+                disconnectP2PNetwork();
+            }
+            isPaused = false; 
+            gameState = "MENU"; 
+            document.getElementById('menu').style.display = "flex";
+            document.getElementById('stats').style.display = "none"; 
+            document.getElementById('pauseBtnUI').style.display = "none";
+            document.getElementById('spectatorHUD').style.display = "none";
+            updateMainStats();
+        };
+
+        document.getElementById('deathMenuBtn').onclick = () => {
+            document.getElementById('deathScreen').style.display = "none";
+            if (isMultiplayer) {
+                disconnectP2PNetwork();
+            }
+            document.getElementById('menu').style.display = "flex";
+            gameState = "MENU"; 
+            updateMainStats();
+        };
+
+        /* BESTIARY UI LOGIC */
+        document.getElementById('viewBestBtn').onclick = () => {
+            const iconContainer = document.getElementById('zombieIcons');
+            iconContainer.innerHTML = "";
+            
+            ZOMBIE_DATA.forEach((z) => {
+                const count = zombieKillCounts[z.id] || 0;
+                const isUnlocked = count >= z.threshold;
+                const div = document.createElement('div');
+                div.className = `z-icon ${isUnlocked ? '' : 'locked'}`;
+                
+                if (isUnlocked) {
+                    div.innerHTML = `<div style="width:30px; height:30px; background:${z.color}; border:2px solid #000;"></div>
+                                     <div style="margin-top:10px; font-weight:bold; font-size:12px; color:${z.isBoss ? '#ff4444' : '#fff'};">${z.name}</div>
+                                     <div style="font-size:10px; color:#888; margin-top:2px;">KILLS: ${count}</div>`;
+                    div.onclick = () => {
+                        document.querySelectorAll('.z-icon').forEach(i => i.classList.remove('selected'));
+                        div.classList.add('selected');
+                        document.getElementById('detName').innerText = z.name;
+                        document.getElementById('detBody').innerHTML = `
+                            <div style="background:#1a1a1a; padding:15px; border-radius:8px; border:1px solid #333; margin-bottom:20px;">
+                                <p style="font-size:18px; margin: 8px 0; color:#00ff00;"><b>Health Points:</b> ${z.hp}</p>
+                                <p style="font-size:18px; margin: 8px 0; color:#007bff;"><b>Movement Speed:</b> ${z.speed}</p>
+                                <p style="font-size:18px; margin: 8px 0; color:#ffd700;"><b>Point Value:</b> ${z.score}</p>
+                                <p style="font-size:18px; margin: 8px 0; color:#ff4444;"><b>Total Eliminated:</b> ${count}</p>
+                                ${z.isBoss ? '<p style="color: #ff0000; font-weight: bold; font-size: 20px;">[BOSS CLASS]</p>' : ''}
+                            </div>
+                            <p style="margin-top:20px; color:#ccc; line-height:1.6; font-size:18px; border-top:1px solid #333; padding-top:20px;">"${z.desc}"</p>
+                        `;
+                    };
+                } else {
+                    const percentage = Math.min(100, (count / z.threshold) * 100);
+                    div.innerHTML = `
+                        <div class="lock-text">?</div>
+                        <div style="font-size:11px; color:#aaa; font-weight:bold; margin-top:5px;">SLAIN: ${count}/${z.threshold}</div>
+                        <div class="prog-container"><div class="prog-fill" style="width:${percentage}%"></div></div>
+                    `;
+                }
+                iconContainer.appendChild(div);
+            });
+            document.getElementById('bestiaryMenu').style.display = "flex";
+        };
+
+        document.getElementById('closeBestBtn').onclick = () => document.getElementById('bestiaryMenu').style.display = "none";
+
+        document.getElementById('viewAchBtn').onclick = () => {
+            const listContainer = document.getElementById('achList');
+            listContainer.innerHTML = "";
+            ACHIEVEMENT_LIST.forEach(ach => {
+                const isUnlocked = unlockedAchievements.includes(ach.id);
+                const div = document.createElement('div');
+                div.className = `ach-item ${isUnlocked ? 'unlocked' : ''}`;
+                div.innerHTML = `
+                    <div style="font-weight:bold; color:${isUnlocked ? '#ffd700' : '#666'}; font-size:18px;">${ach.title}</div>
+                    <div style="font-size:14px; color:#aaa; margin-top:5px;">${ach.desc}</div>
+                `;
+                listContainer.appendChild(div);
+            });
+            document.getElementById('achievementsMenu').style.display = "flex";
+        };
+
+        document.getElementById('closeAchBtn').onclick = () => document.getElementById('achievementsMenu').style.display = "none";
+
+        /* ABILITY SYSTEM */
+        const ABILITIES = [
+            { id: 'dash', name: 'Phase Dash', desc: 'Burst forward instantly.', cd: 7000, color: '#00ffff' },
+            { id: 'blast', name: 'Nova Blast', desc: '360° explosion (3 DMG).', cd: 33000, color: '#ff4500' },
+            { id: 'overdrive', name: 'Overdrive', desc: '+75% Spd/Fire for 7s.', cd: 39000, color: '#ffff00' },
+            { id: 'second_chance', name: 'Last Stand', desc: '2s window: If hit, go invincible.', cd: 36000, color: '#00ff00' },
+            { id: 'red_bullets', name: 'Blood Rounds', desc: 'Bullets deal +2 DMG for 8s.', cd: 32000, color: '#ff0000' }
+        ];
+
+        let playerAbilities = []; 
+        let abilityCooldowns = { Q: 0, E: 0, R: 0 };
+        let activeEffects = { overdrive: 0, lastStand: 0, bloodRounds: 0, invincibility: 0 };
+        const keysToSlots = ['Q', 'E', 'R'];
+
+        function showUpgradeScreen() {
+            isPaused = true;
+            const container = document.getElementById('upgradeCards');
+            container.innerHTML = "";
+            document.getElementById('upgradeSelection').style.display = "flex";
+
+            let available = ABILITIES.filter(a => !playerAbilities.find(p => p.id === a.id));
+            let shuffled = available.sort(() => 0.5 - Math.random()).slice(0, 2);
+
+            shuffled.forEach(ab => {
+                const card = document.createElement('div');
+                card.className = "class-card";
+                card.innerHTML = `
+                    <h2 style="color:${ab.color}">${ab.name}</h2>
+                    <p>${ab.desc}</p>
+                    <div class="raw-stats">Cooldown: ${ab.cd/1000}s</div>
+                `;
+                card.onclick = () => selectAbility(ab);
+                container.appendChild(card);
+            });
+        }
+
+        function selectAbility(ability) {
+            playerAbilities.push(ability);
+            const slotKey = keysToSlots[playerAbilities.length - 1];
+            document.getElementById(`slot-${slotKey}`).classList.add('active');
+            document.getElementById(`label-${slotKey}`).innerText = ability.name.split(' ')[0];
+    
+            document.getElementById('upgradeSelection').style.display = "none";
+            isPaused = false;
+        }
+
+        function handleAbilities() {
+            if (gameState !== "PLAYING" || isPaused || player.dead) return;
+            const now = Date.now();
+
+            keysToSlots.forEach((key, index) => {
+                if (keys[`Key${key}`] && playerAbilities[index] && now > abilityCooldowns[key]) {
+                    useAbility(playerAbilities[index], key);
+                }
+        
+                if (playerAbilities[index]) {
+                    const ab = playerAbilities[index];
+                    const remaining = Math.max(0, abilityCooldowns[key] - now);
+                    const perc = (remaining / ab.cd) * 100;
+                    document.getElementById(`cd-${key}`).style.height = perc + "%";
+                }
+            });
+        }
+
+        function useAbility(ab, key) {
+            const now = Date.now();
+            abilityCooldowns[key] = now + ab.cd;
+
+            if (ab.id === 'dash') {
+                const angle = Math.atan2(mouseY - canvas.height/2, mouseX - canvas.width/2);
+                const dashForce = 35; 
+    
+                player.vx = Math.cos(angle) * dashForce;
+                player.vy = Math.sin(angle) * dashForce;
+            }
+            else if (ab.id === 'blast') {
+                const blastEvent = {
+                    x: player.x,
+                    y: player.y,
+                    radius: 0,
+                    maxRadius: 250, 
+                    duration: 2500, 
+                    startTime: now,
+                    damagedZombies: new Set() 
+                };
+                activeNovaCircles.push(blastEvent);
+
+                if (isMultiplayer) {
+                    broadcastP2PMessage({
+                        type: "TRIGGER_NOVA",
+                        x: player.x,
+                        y: player.y
+                    });
+                }
+            }
+            else if (ab.id === 'overdrive') {
+                activeEffects.overdrive = now + 7000;
+                const oldSpeed = player.speed;
+                const oldRate = player.fireRate;
+                player.speed *= 1.75;
+                player.fireRate *= 0.57; 
+                setTimeout(() => { player.speed = oldSpeed; player.fireRate = oldRate; }, 7000);
+            }
+            else if (ab.id === 'second_chance') {
+                activeEffects.lastStand = now + 2000;
+            }
+            else if (ab.id === 'red_bullets') {
+                activeEffects.bloodRounds = now + 8000;
+            }
+        }
+
+        /* CORE WEAPONRY SYSTEM */
+        function handleWeaponry() {
+            if (gameState !== "PLAYING" || isPaused || player.dead) return;
+            const now = Date.now(); 
+            if (now - lastFireTime < player.fireRate) return;
+
+            let fireDirX = 0;
+            let fireDirY = 0;
+            if (keys['ArrowUp']) fireDirY -= 1;
+            if (keys['ArrowDown']) fireDirY += 1;
+            if (keys['ArrowLeft']) fireDirX -= 1;
+            if (keys['ArrowRight']) fireDirX += 1;
+
+            let angle = null;
+
+            if (fireDirX !== 0 || fireDirY !== 0) {
+                angle = Math.atan2(fireDirY, fireDirX);
+            } else if (keys['Space'] || mouseIsPressed) {
+                const worldTargetX = mouseX + (player.x - canvas.width / 2);
+                const worldTargetY = mouseY + (player.y - canvas.height / 2);
+                angle = Math.atan2(worldTargetY - player.y, worldTargetX - player.x);
+            }
+
+            if (angle !== null) {
+                const isRed = Date.now() < activeEffects.bloodRounds;
+                const bulletDmg = isRed ? player.damage + 2 : player.damage;
+                const bulletColor = isRed ? "#ff0000" : "yellow";
+
+                const bulletObj = { 
+                    x: player.x, 
+                    y: player.y, 
+                    vx: Math.cos(angle) * 10, 
+                    vy: Math.sin(angle) * 10, 
+                    size: 5,
+                    dmg: bulletDmg, 
+                    color: bulletColor,
+                    owner: player.id
+                };
+                
+                bullets.push(bulletObj);
+
+                if (isMultiplayer) {
+                    broadcastP2PMessage({
+                        type: "SPAWN_BULLET",
+                        x: player.x,
+                        y: player.y,
+                        vx: bulletObj.vx,
+                        vy: bulletObj.vy,
+                        dmg: bulletDmg,
+                        color: bulletColor
+                    });
+                }
+                lastFireTime = now;
+            }
+        }
+
+        /* PHYSICS AND BUILDING ENVIRONMENTS */
+        function detectBuildingCollision(x, y, size) {
+            for (let b of buildings) {
+                if (x + size/2 > b.x && x - size/2 < b.x + b.w && y + size/2 > b.y && y - size/2 < b.y + b.h) {
+                    return b;
+                }
+            } 
+            return null;
+        }
+
+        // Custom seeded random number engine to coordinate building syncs accurately
+        function seededRandom(seed) {
+            const x = Math.sin(seed++) * 10000;
+            return x - Math.floor(x);
+        }
+
+        function generateEnvironment(targetSeed = 12345) {
+            buildings.length = 0;
+            let currentSeed = targetSeed;
+            for (let i = 0; i < 22; i++) {
+                const r1 = seededRandom(currentSeed++);
+                const r2 = seededRandom(currentSeed++);
+                const r3 = seededRandom(currentSeed++);
+                const r4 = seededRandom(currentSeed++);
+
+                const w = 140 + r1 * 260;
+                const h = 140 + r2 * 260;
+                const x = r3 * (WORLD_SIZE - w);
+                const y = r4 * (WORLD_SIZE - h);
+                
+                if (Math.hypot(x + w/2 - (WORLD_SIZE/2), y + h/2 - (WORLD_SIZE/2)) < 350) continue;
+                buildings.push({ x, y, w, h });
+            }
+        }
+
+        function spawnBoss(typeIndex) {
+            const zType = ZOMBIE_DATA[typeIndex];
+            let x = Math.random() * WORLD_SIZE;
+            let y = Math.random() * WORLD_SIZE;
+            
+            while (Math.hypot(x - player.x, y - player.y) < 800 || detectBuildingCollision(x, y, zType.size)) {
+                 x = Math.random() * WORLD_SIZE;
+                 y = Math.random() * WORLD_SIZE;
+            }
+
+            const bossObj = { 
+                id: "boss_" + Date.now() + "_" + Math.floor(Math.random()*1000),
+                x, y, 
+                size: zType.size, 
+                speed: zType.speed, 
+                health: zType.hp, 
+                color: zType.color, 
+                scoreVal: zType.score, 
+                typeId: zType.id, 
+                typeName: zType.name,
+                isBoss: true 
+            };
+
+            zombies.push(bossObj);
+            bossActive = true;
+            document.getElementById('bossStatus').style.display = "block";
+            
+            triggerBossWarningBanner(zType.name);
+
+            if (isMultiplayer && isHost) {
+                broadcastP2PMessage({
+                    type: "SYNC_ZOMBIE_SPAWN",
+                    zombie: bossObj
+                });
+            }
+        }
+
+        function triggerBossWarningBanner(name) {
+            const warning = document.getElementById('bossWarning');
+            warning.innerText = name.toUpperCase() + " HAS ARRIVED!";
+            warning.style.display = "block";
+            setTimeout(() => { warning.style.display = "none"; }, 3000);
+            triggerNotification("WARNING", name + " spawned. Spawn rates reduced!", "#ff0000");
+        }
+
+        function spawnZombieCycle() {
+            if (gameState !== "PLAYING" || isPaused || (isMultiplayer && !isHost)) { 
+                setTimeout(spawnZombieCycle, 1000); 
+                return; 
+            }
+
+            // Host handles and computes standard wave progression thresholds
+            if (score >= 1500 && !bossesSpawnedThisRun.norm) {
+                bossesSpawnedThisRun.norm = true;
+                spawnBoss(6); 
+                return;
+            }
+            if (score >= 3000 && !bossesSpawnedThisRun.fast) {
+                bossesSpawnedThisRun.fast = true;
+                spawnBoss(7); 
+                return;
+            }
+            if (score >= 4500 && !bossesSpawnedThisRun.slow) {
+                bossesSpawnedThisRun.slow = true;
+                spawnBoss(8); 
+                return;
+            }
+            
+            let x = Math.random() * WORLD_SIZE;
+            let y = Math.random() * WORLD_SIZE;
+            
+            const sizeRoll = Math.random(); 
+            const speedRoll = Math.random();
+            let zType;
+            
+            if (sizeRoll < 0.78) {
+                if (speedRoll < 0.22) zType = ZOMBIE_DATA[0];
+                else if (speedRoll > 0.88) zType = ZOMBIE_DATA[2];
+                else zType = ZOMBIE_DATA[1];
+            } else {
+                if (speedRoll < 0.22) zType = ZOMBIE_DATA[3];
+                else if (speedRoll > 0.88) zType = ZOMBIE_DATA[5];
+                else zType = ZOMBIE_DATA[4];
+            }
+            
+            if (detectBuildingCollision(x, y, zType.size) || Math.hypot(x - player.x, y - player.y) < 650) { 
+                setTimeout(spawnZombieCycle, 10); 
+                return; 
+            }
+            
+            const normalZom = { 
+                id: "zom_" + Date.now() + "_" + Math.floor(Math.random()*100000),
+                x, y, 
+                size: zType.size, 
+                speed: zType.speed, 
+                health: zType.hp, 
+                color: zType.color, 
+                scoreVal: zType.score, 
+                typeId: zType.id, 
+                typeName: zType.name,
+                isBoss: false
+            };
+
+            zombies.push(normalZom);
+            
+            if (isMultiplayer && isHost) {
+                broadcastP2PMessage({
+                    type: "SYNC_ZOMBIE_SPAWN",
+                    zombie: normalZom
+                });
+            }
+
+            let spawnDelay = Math.max(220, 1600 - (score * 0.45)); 
+            if (bossActive) spawnDelay *= 10;
+
+            setTimeout(spawnZombieCycle, spawnDelay);
+        }
+
+        function runAchievementChecks(justKilledId = null) {
+            ACHIEVEMENT_LIST.forEach(ach => {
+                if (unlockedAchievements.includes(ach.id)) return;
+                let met = false;
+                
+                if (ach.scoreGoal && score >= ach.scoreGoal) met = true;
+                if (ach.killGoal && currentRunKills >= ach.killGoal) met = true;
+                if (ach.bossId && justKilledId === ach.bossId) met = true;
+                
+                if (met) {
+                    unlockedAchievements.push(ach.id);
+                    localStorage.setItem('undead_ach', JSON.stringify(unlockedAchievements));
+                    triggerNotification("Achievement Unlocked!", ach.title, "#ffd700");
+                }
+            });
+        }
+
+        function triggerDeath() {
+            player.dead = true;
+            lifetimeKills += currentRunKills;
+            localStorage.setItem('undead_tk', lifetimeKills);
+            
+            if (currentRunKills > maxKills) { 
+                maxKills = currentRunKills; 
+                localStorage.setItem('undead_mk', maxKills); 
+            }
+            
+            const isNewHS = score > highScore;
+            if (isNewHS) { 
+                highScore = score; 
+                localStorage.setItem('undead_hs', highScore); 
+            }
+
+            if (isMultiplayer) {
+                broadcastP2PMessage({
+                    type: "SURVIVOR_DIED",
+                    id: player.id
+                });
+                
+                // Switch local client immediately into functional active spectating overlay frame
+                initiateSpectatorView();
+            } else {
+                // Instantly open standard standalone defeat dashboard
+                displayFinalDeathScreen("YOU WERE OVERRUN");
+            }
+        }
+
+        function displayFinalDeathScreen(headlineText) {
+            document.getElementById('deathScreenTitle').innerText = headlineText;
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('finalKills').innerText = currentRunKills;
+            
+            const isNewHS = score > highScore;
+            document.getElementById('newHighScoreNote').style.display = isNewHS ? "block" : "none";
+            
+            document.getElementById('deathScreen').style.display = "flex";
+            document.getElementById('pauseBtnUI').style.display = "none";
+            document.getElementById('spectatorHUD').style.display = "none";
+        }
+
+        /* --- SPECTATOR CAMERA ENGINE CONTROLLER --- */
+        function initiateSpectatorView() {
+            document.getElementById('pauseBtnUI').style.display = "none";
+            document.getElementById('spectatorHUD').style.display = "flex";
+            cycleSpectatorTarget(1);
+        }
+
+        function cycleSpectatorTarget(direction = 1) {
+            // Locate all living players inside active remote player dictionary lists
+            let availableTargets = [];
+            
+            if (isMultiplayer) {
+                if (isHost && !player.dead) availableTargets.push(player);
+                else if (!isHost && !player.dead) availableTargets.push(player);
+
+                Object.values(remotePlayers).forEach(p => {
+                    if (!p.dead) availableTargets.push(p);
+                });
+            }
+
+            if (availableTargets.length === 0) {
+                activeSpectatorTargetID = null;
+                document.getElementById('specPlayerName').innerText = "None";
+                return;
+            }
+
+            let currentIndex = availableTargets.findIndex(t => t.id === activeSpectatorTargetID);
+            currentIndex += direction;
+            
+            if(currentIndex >= availableTargets.length) currentIndex = 0;
+            if(currentIndex < 0) currentIndex = availableTargets.length - 1;
+
+            const selectedTarget = availableTargets[currentIndex];
+            activeSpectatorTargetID = selectedTarget.id;
+            document.getElementById('specPlayerName').innerText = selectedTarget.name;
+        }
+
+        document.getElementById('specPrevBtn').onclick = () => cycleSpectatorTarget(-1);
+        document.getElementById('specNextBtn').onclick = () => cycleSpectatorTarget(1);
+
+
+        /* FRAME UPDATE SYSTEM MAIN TICK */
+        function runGameLoop() {
+            if (gameState !== "PLAYING" || isPaused || gameOver) return;
+
+            // 1. Position self if still alive
+            if (!player.dead) {
+                if (keys['KeyW']) player.vy -= player.speed * 0.2;
+                if (keys['KeyS']) player.vy += player.speed * 0.2;
+                if (keys['KeyA']) player.vx -= player.speed * 0.2;
+                if (keys['KeyD']) player.vx += player.speed * 0.2;
+
+                player.vx *= player.friction;
+                player.vy *= player.friction;
+
+                let nx = player.x + player.vx;
+                let ny = player.y + player.vy;
+
+                if (!detectBuildingCollision(nx, player.y, player.size) && nx > 0 && nx < WORLD_SIZE) {
+                    player.x = nx;
+                } else { player.vx = 0; }
+
+                if (!detectBuildingCollision(player.x, ny, player.size) && ny > 0 && ny < WORLD_SIZE) {
+                    player.y = ny;
+                } else { player.vy = 0; }
+
+                handleWeaponry();
+                handleAbilities();
+            }
+
+            // Sync structural local coordinate shifts to channels
+            if (isMultiplayer) {
+                broadcastP2PMessage({
+                    type: "POSITION_SYNC",
+                    id: player.id,
+                    x: player.x,
+                    y: player.y,
+                    vx: player.vx,
+                    vy: player.vy,
+                    dead: player.dead
+                });
+            }
+
+            // 2. Drive Projectiles logic updates
+            bullets.forEach((b, bi) => {
+                b.x += b.vx; 
+                b.y += b.vy;
+                if (detectBuildingCollision(b.x, b.y, b.size) || b.x < 0 || b.x > WORLD_SIZE || b.y < 0 || b.y > WORLD_SIZE) {
+                    bullets.splice(bi, 1);
+                }
+            });
+
+            // 3. Process Rings
+            const now = Date.now();
+            activeNovaCircles.forEach((circle, index) => {
+                const elapsed = now - circle.startTime;
+                const progress = elapsed / circle.duration;
+                circle.radius = circle.maxRadius * progress;
+
+                // Host maps computing logic controls for damage targets
+                if(!isMultiplayer || isHost) {
+                    zombies.forEach((z, zi) => {
+                        const dist = Math.hypot(z.x - circle.x, z.y - circle.y);
+                        if (dist <= circle.radius && !circle.damagedZombies.has(z.id)) {
+                            z.health -= 3;
+                            circle.damagedZombies.add(z.id);
+                            
+                            if (z.health <= 0) {
+                                processZombieElimination(z, zi);
+                            }
+                        }
+                    });
+                }
+                if (progress >= 1) activeNovaCircles.splice(index, 1);
+            });
+
+            // 4. Enemy Actions
+            if (!isMultiplayer || isHost) {
+                // The Host tracks and pushes full calculations down to connected peers
+                zombies.forEach((z, zi) => {
+                    // Identify closest target to hunt out of all active targets
+                    let targetX = player.x;
+                    let targetY = player.y;
+                    let closestDist = player.dead ? Infinity : Math.hypot(player.x - z.x, player.y - z.y);
+
+                    Object.values(remotePlayers).forEach(p => {
+                        if (!p.dead) {
+                            const d = Math.hypot(p.x - z.x, p.y - z.y);
+                            if (d < closestDist) {
+                                closestDist = d;
+                                targetX = p.x;
+                                targetY = p.y;
+                            }
+                        }
+                    });
+
+                    const dx = targetX - z.x;
+                    const dy = targetY - z.y;
+                    const angle = Math.atan2(dy, dx);
+                    
+                    let mx = Math.cos(angle) * z.speed;
+                    let my = Math.sin(angle) * z.speed;
+
+                    let blocked = detectBuildingCollision(z.x + mx * 2, z.y + my * 2, z.size);
+                    if (blocked) {
+                        const fromTop = z.y - blocked.y + z.size;
+                        const fromBottom = (blocked.y + blocked.h) - z.y + z.size;
+                        const fromLeft = z.x - blocked.x + z.size;
+                        const fromRight = (blocked.x + blocked.w) - z.x + z.size;
+
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                            let sy = (fromTop < fromBottom) ? -z.speed : z.speed;
+                            if (!detectBuildingCollision(z.x, z.y + sy * 2, z.size)) { my = sy; mx = 0; }
+                            else { mx = (fromLeft < fromRight) ? -z.speed : z.speed; my = 0; }
+                        } else {
+                            let sx = (fromLeft < fromRight) ? -z.speed : z.speed;
+                            if (!detectBuildingCollision(z.x + sx * 2, z.y, z.size)) { mx = sx; my = 0; }
+                            else { my = (fromTop < fromBottom) ? -z.speed : z.speed; mx = 0; }
+                        }
+                    }
+
+                    if (!detectBuildingCollision(z.x + mx, z.y, z.size)) z.x += mx;
+                    if (!detectBuildingCollision(z.x, z.y + my, z.size)) z.y += my;
+                    
+                    // Attack Check Local Host Character
+                    if (!player.dead && Math.hypot(player.x - z.x, player.y - z.y) < player.size/2 + z.size/2) {
+                        executeHostDamageIntercept(z);
+                    }
+
+                    // Attack Check External Connected Remote Player Clients
+                    Object.values(remotePlayers).forEach(p => {
+                        if (!p.dead && Math.hypot(p.x - z.x, p.y - z.y) < 32/2 + z.size/2) {
+                            // Send command informing client instance node they were bit
+                            broadcastP2PMessage({
+                                type: "CLIENT_BIT_CMD",
+                                targetID: p.id
+                            });
+                        }
+                    });
+                    
+                    // Bullet Hit Sweeps computed by the Core Host instance
+                    bullets.forEach((b, bi) => {
+                        if (Math.hypot(b.x - z.x, b.y - z.y) < z.size/2 + b.size/2) {
+                            bullets.splice(bi, 1);
+                            z.health -= b.dmg; 
+                            
+                            if (isMultiplayer) {
+                                broadcastP2PMessage({
+                                    type: "BULLET_POP_FX",
+                                    index: bi
+                                });
+                            }
+
+                            if (z.health <= 0) {
+                                processZombieElimination(z, zi, b.owner);
+                            }
+                        }
+                    });
+                });
+
+                // Push global synchronized frame state arrays to clean non-host simulation mirrors
+                if (isMultiplayer) {
+                    broadcastP2PMessage({
+                        type: "HOST_SIMULATION_TICK",
+                        zombies: zombies,
+                        score: score,
+                        bossActive: bossActive
+                    });
+                }
+            } else {
+                // Running as standard client peer channel: process hit registrations locally on client bullets
+                bullets.forEach((b, bi) => {
+                    if (b.owner === player.id) {
+                        zombies.forEach((z, zi) => {
+                            if (Math.hypot(b.x - z.x, b.y - z.y) < z.size/2 + b.size/2) {
+                                bullets.splice(bi, 1);
+                                // Relay structural damage registration calculation up to Host authoritatively
+                                broadcastP2PMessage({
+                                    type: "HIT_REG_REPORT",
+                                    zombieID: z.id,
+                                    dmg: b.dmg,
+                                    owner: player.id
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+
+            // 5. Match termination system monitor loops
+            evaluateEndGameStates();
+        }
+
+        function executeHostDamageIntercept(zombieRef) {
+            const now = Date.now();
+            if (now < activeEffects.invincibility) return;
+
+            if (now < activeEffects.lastStand) {
+                activeEffects.invincibility = now + 4000;
+                player.speed += 2;
+                triggerNotification("LAST STAND!", "Invincible & Fast!", "#00ff00");
+                zombies.forEach(zom => {
+                    if (Math.hypot(zom.x - player.x, zom.y - player.y) < 150) {
+                        zom.health -= 4;
+                        zom.x += (zom.x - player.x) * 2; 
+                        zom.y += (zom.y - player.y) * 2;
+                    }
+                });
+                setTimeout(() => { player.speed -= 2; }, 4000);
+                activeEffects.lastStand = 0;
+            } else {
+                triggerDeath();
+            }
+        }
+
+        function processZombieElimination(zombieObj, index, killerID = "local_player") {
+            zombieKillCounts[zombieObj.typeId] = (zombieKillCounts[zombieObj.typeId] || 0) + 1;
+            localStorage.setItem('undead_zkills', JSON.stringify(zombieKillCounts));
+            
+            const meta = ZOMBIE_DATA.find(d => d.id === zombieObj.typeId);
+            if (zombieKillCounts[zombieObj.typeId] === meta.threshold) {
+                triggerNotification("Archive Unlocked", zombieObj.typeName + " bio complete!", "#ff4444");
+            }
+
+            if (zombieObj.isBoss) {
+                bossActive = false;
+                document.getElementById('bossStatus').style.display = "none";
+                triggerBossWarningBanner(zombieObj.typeName);
+                
+                // If local killer triggered it, display card choices directly
+                if (killerID === player.id) {
+                    setTimeout(showUpgradeScreen, 1500);
+                } else {
+                    // Send target RPC upgrade command across connection line
+                    broadcastP2PMessage({
+                        type: "DISTRIBUTE_ABILITY_REWARD",
+                        targetID: killerID
+                    });
+                }
+            }
+
+            zombies.splice(index, 1); 
+            
+            if (killerID === player.id) {
+                currentRunKills++;
+            }
+            
+            score += zombieObj.scoreVal;
+            document.getElementById('score').innerText = score;
+            document.getElementById('totalKills').innerText = currentRunKills;
+            runAchievementChecks(zombieObj.typeId);
+        }
+
+        function evaluateEndGameStates() {
+            let totalPlayersCount = 1;
+            let aliveCount = player.dead ? 0 : 1;
+
+            if (isMultiplayer) {
+                const peersList = Object.values(remotePlayers);
+                totalPlayersCount += peersList.length;
+                peersList.forEach(p => {
+                    if(!p.dead) aliveCount++;
+                });
+            }
+
+            if (aliveCount === 0) {
+                gameOver = true;
+                if (isMultiplayer) {
+                    broadcastP2PMessage({
+                        type: "TEAM_EXTINCTION_EVENT",
+                        finalScore: score
+                    });
+                    displayFinalDeathScreen("SQUAD WAS WIPED OUT");
+                } else {
+                    displayFinalDeathScreen("YOU WERE OVERRUN");
+                }
+            }
+        }
+
+
+        /* DRAW FRAME GRAPHICS RENDERING */
+        function drawScene() {
+            canvas.width = window.innerWidth; 
+            canvas.height = window.innerHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Camera position center points logic tracking calculations
+            let targetCamX = player.x;
+            let targetCamY = player.y;
+
+            // Camera overrides down onto targeted living survivor during spectating operations
+            if (player.dead && activeSpectatorTargetID !== null) {
+                if (activeSpectatorTargetID === player.id) {
+                    targetCamX = player.x;
+                    targetCamY = player.y;
+                } else if (remotePlayers[activeSpectatorTargetID]) {
+                    targetCamX = remotePlayers[activeSpectatorTargetID].x;
+                    targetCamY = remotePlayers[activeSpectatorTargetID].y;
+                }
+            }
+
+            const camX = canvas.width / 2 - targetCamX;
+            const camY = canvas.height / 2 - targetCamY;
+            
+            ctx.save(); 
+            ctx.translate(camX, camY);
+            ctx.fillStyle = "#222"; 
+            ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+            
+            buildings.forEach(b => {
+                ctx.fillStyle = "#5d4037"; 
+                ctx.fillRect(b.x, b.y, b.w, b.h);
+                ctx.strokeStyle = "#3e2723"; 
+                ctx.lineWidth = 4; 
+                ctx.strokeRect(b.x, b.y, b.w, b.h);
+            });
+            
+            // Dynamic generation overlays rendering frames for blast expansion arcs
+            activeNovaCircles.forEach((circle) => {
+                ctx.beginPath();
+                ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2);
+                const progress = circle.radius / circle.maxRadius;
+                ctx.strokeStyle = `rgba(255, 69, 0, ${1 - progress})`; 
+                ctx.lineWidth = 5;
+                ctx.stroke();
+            });
+
+            if (gameState === "PLAYING" || gameState === "DEAD") {
+                bullets.forEach(b => {
+                    ctx.fillStyle = b.color;
+                    ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2); ctx.fill();
+                });
+                zombies.forEach(z => {
+                    ctx.fillStyle = z.color;
+                    ctx.fillRect(z.x - z.size/2, z.y - z.size/2, z.size, z.size);
+                    if (z.isBoss) {
+                        const meta = ZOMBIE_DATA.find(d => d.id === z.typeId);
+                        const currentHpMax = meta ? meta.hp : 50;
+                        ctx.fillStyle = 'black';
+                        ctx.fillRect(z.x - 50, z.y - z.size/2 - 20, 100, 10);
+                        ctx.fillStyle = '#ff4444';
+                        ctx.fillRect(z.x - 50, z.y - z.size/2 - 20, Math.max(0, (z.health / currentHpMax) * 100), 10);
+                    }
+                });
+
+                // Render remote allied character grids across active session canvas links
+                if (isMultiplayer) {
+                    Object.values(remotePlayers).forEach(p => {
+                        if (!p.dead) {
+                            ctx.fillStyle = p.color || '#ff00ff';
+                            ctx.fillRect(p.x - 16, p.y - 16, 32, 32);
+                            
+                            // Visual text name tag indicator strings overlay
+                            ctx.fillStyle = "#ffffff";
+                            ctx.font = "12px sans-serif";
+                            ctx.textAlign = "center";
+                            ctx.fillText(p.name, p.x, p.y - 24);
+                        }
+                    });
+                }
+
+                // Draw main host self element block
+                if (!player.dead) {
+                    ctx.fillStyle = player.color; 
+                    ctx.fillRect(player.x - player.size/2, player.y - player.size/2, player.size, player.size);
+                    
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "12px sans-serif";
+                    ctx.textAlign = "center";
+                    ctx.fillText(player.name + " (You)", player.x, player.y - 24);
+                }
+            }
+            
+            ctx.restore();
+            runGameLoop();
+            requestAnimationFrame(drawScene);
+        }
+
+        /* INPUT REGISTRATIONS SYSTEM LISTENERS */
+        window.onkeydown = (e) => { 
+            keys[e.code] = true; 
+            if (e.code === 'KeyP' || e.code === 'Escape') togglePause(); 
+        };
+        window.onkeyup = (e) => keys[e.code] = false;
+        window.onmousemove = (e) => { mouseX = e.clientX; mouseY = e.clientY; };
+        window.onmousedown = () => mouseIsPressed = true;
+        window.onmouseup = () => mouseIsPressed = false;
+
+
+        /* =========================================================================
+           --- AUTHORITATIVE SERVERLESS WEBRTC MULTIPLAYER MATCH ENGINE MAPPING ---
+           ========================================================================= */
+
+        function initializePeerConnectionChannel(targetRoomCode = null) {
+            disconnectP2PNetwork();
+
+            // disconnectP2PNetwork resets these flags, so re-set them now
+            isMultiplayer = true;
+            isHost = (targetRoomCode === null);
+
+            if (targetRoomCode === null) {
+                // Host Mode: Generate random room code via PeerJS brokering services
+                player.id = "host_" + Math.floor(Math.random() * 89999 + 10000);
+                peerInstance = new Peer(player.id);
+                
+                peerInstance.on('open', (id) => {
+                    myLobbyPeerID = id;
+                    document.getElementById('lobbyCodeDisplay').innerText = `Room Code: ${id}`;
+                    document.getElementById('lobbyStatusText').innerText = "Status: Waiting for squads to connect...";
+                    renderLobbyListHTML();
+                });
+
+                peerInstance.on('connection', (conn) => {
+                    // Prevent connecting above maximum capacity limits
+                    if (netConnections.length >= 5) {
+                        conn.on('open', () => {
+                            conn.send({ type: "ROOM_FULL_DISCONNECT" });
+                            setTimeout(() => conn.close(), 500);
+                        });
+                        return;
+                    }
+
+                    setupNetworkTrafficRouting(conn);
+                });
+            } else {
+                // Client Connection Channel Router Entry Phase
+                player.id = "client_" + Math.floor(Math.random() * 89999 + 10000);
+                peerInstance = new Peer(player.id);
+
+                peerInstance.on('open', (id) => {
+                    myLobbyPeerID = id;
+                    const connectionLink = peerInstance.connect(targetRoomCode);
+                    setupNetworkTrafficRouting(connectionLink);
+                });
+
+                peerInstance.on('error', (err) => {
+                    alert("Network Connection failed to attach: " + err.type);
+                    document.getElementById('lobbyStatusText').innerText = "Status: Connection Error.";
+                });
+            }
+        }
+
+        function setupNetworkTrafficRouting(conn) {
+            netConnections.push(conn);
+
+            conn.on('open', () => {
+                document.getElementById('lobbyStatusText').innerText = "Connected to room channel grid!";
+                
+                // Immediately synchronize state settings over channels
+                conn.send({
+                    type: "LOBBY_JOIN_BURST",
+                    id: player.id,
+                    name: player.name,
+                    color: player.color
+                });
+            });
+
+            conn.on('data', (data) => {
+                switch(data.type) {
+                    case "LOBBY_JOIN_BURST":
+                        remotePlayers[data.id] = {
+                            id: data.id,
+                            name: data.name,
+                            color: data.color,
+                            x: WORLD_SIZE/2,
+                            y: WORLD_SIZE/2,
+                            dead: false
+                        };
+                        triggerNotification("Squad Joined", `${data.name} entered the staging queue!`, "#00ff00");
+                        
+                        if (isHost) {
+                            // Sync current state metadata down to the newly connected peer client
+                            syncWholeLobbyManifestToAll();
+                        }
+                        renderLobbyListHTML();
+                        break;
+
+                    case "MANIFEST_REFRESH":
+                        // Client synchronizes structural remote list grids
+                        remotePlayers = data.list;
+                        // Strip out entry key matching down into self record reference structures
+                        delete remotePlayers[player.id];
+                        renderLobbyListHTML();
+                        break;
+
+                    case "LOBBY_UPDATE":
+                        if (remotePlayers[data.id]) {
+                            remotePlayers[data.id].name = data.name;
+                            remotePlayers[data.id].color = data.color;
+                        }
+                        renderLobbyListHTML();
+                        if (isHost) syncWholeLobbyManifestToAll();
+                        break;
+
+                    case "LOAD_CLASS_SELECT":
+                        mpLobbySeed = data.seed;
+                        localClassSelected = false;
+                        // Also clear remote players' ready states for this round
+                        Object.values(remotePlayers).forEach(p => { p.ready = false; });
+                        document.getElementById('lobbyScreen').style.display = "none";
+                        document.getElementById('classSelection').style.display = "flex";
+                        break;
+
+                    case "PLAYER_CLASS_READY":
+                        if(remotePlayers[data.id]) {
+                            remotePlayers[data.id].ready = true;
+                            remotePlayers[data.id].speed = data.speed;
+                            remotePlayers[data.id].damage = data.damage;
+                            remotePlayers[data.id].fireRate = data.fireRate;
+                            // Refresh waiting list if local player is also waiting
+                            if (document.getElementById('waitingScreen').style.display === "flex") {
+                                updateWaitingList();
+                            }
+                        }
+                        // Host checks if the whole squad is now locked in
+                        if (isHost) {
+                            checkAllPlayersReady();
+                        }
+                        break;
+
+                    case "ALL_READY_START":
+                        // Received by clients — everyone picked, time to go
+                        document.getElementById('waitingScreen').style.display = "none";
+                        startNewGame();
+                        break;
+
+                    case "POSITION_SYNC":
+                        if (remotePlayers[data.id]) {
+                            remotePlayers[data.id].x = data.x;
+                            remotePlayers[data.id].y = data.y;
+                            remotePlayers[data.id].vx = data.vx;
+                            remotePlayers[data.id].vy = data.vy;
+                            remotePlayers[data.id].dead = data.dead;
+                        }
+                        break;
+
+                    case "SPAWN_BULLET":
+                        bullets.push({
+                            x: data.x, y: data.y, vx: data.vx, vy: data.vy,
+                            size: 5, dmg: data.dmg, color: data.color, owner: "remote_peer"
+                        });
+                        break;
+
+                    case "TRIGGER_NOVA":
+                        activeNovaCircles.push({
+                            x: data.x, y: data.y, radius: 0, maxRadius: 250,
+                            duration: 2500, startTime: Date.now(), damagedZombies: new Set()
+                        });
+                        break;
+
+                    case "SYNC_ZOMBIE_SPAWN":
+                        zombies.push(data.zombie);
+                        if (data.zombie.isBoss) {
+                            bossActive = true;
+                            document.getElementById('bossStatus').style.display = "block";
+                            triggerBossWarningBanner(data.zombie.typeName);
+                        }
+                        break;
+
+                    case "HOST_SIMULATION_TICK":
+                        // Overwrite position vectors calculated authoritatively by Host
+                        if (!isHost) {
+                            // Sync state lists
+                            zombies.length = 0;
+                            data.zombies.forEach(z => zombies.push(z));
+                            score = data.score;
+                            bossActive = data.bossActive;
+                            document.getElementById('score').innerText = score;
+                            document.getElementById('bossStatus').style.display = bossActive ? "block" : "none";
+                        }
+                        break;
+
+                    case "HIT_REG_REPORT":
+                        if (isHost) {
+                            const matchZom = zombies.find(z => z.id === data.zombieID);
+                            const zomIndex = zombies.findIndex(z => z.id === data.zombieID);
+                            if (matchZom && zomIndex !== -1) {
+                                matchZom.health -= data.dmg;
+                                if (matchZom.health <= 0) {
+                                    processZombieElimination(matchZom, zomIndex, data.owner);
+                                }
+                            }
+                        }
+                        break;
+
+                    case "BULLET_POP_FX":
+                        if (bullets[data.index]) bullets.splice(data.index, 1);
+                        break;
+
+                    case "CLIENT_BIT_CMD":
+                        if (data.targetID === player.id) {
+                            // Process local hit registration safely on yourself
+                            executeHostDamageIntercept(null);
+                        }
+                        break;
+
+                    case "DISTRIBUTE_ABILITY_REWARD":
+                        if (data.targetID === player.id) {
+                            showUpgradeScreen();
+                        }
+                        break;
+
+                    case "SURVIVOR_DIED":
+                        if (remotePlayers[data.id]) remotePlayers[data.id].dead = true;
+                        triggerNotification("Ally Down", "A squadmate has fallen into spectator mode!", "#ff4444");
+                        break;
+
+                    case "TEAM_EXTINCTION_EVENT":
+                        gameOver = true;
+                        score = data.finalScore;
+                        displayFinalDeathScreen("SQUAD WAS WIPED OUT");
+                        break;
+
+                    case "HOST_PAUSE_CMD":
+                        isPaused = data.state;
+                        document.getElementById('pauseOverlay').style.display = isPaused ? "flex" : "none";
+                        break;
+
+                    case "RETURN_TO_LOBBY":
+                        if (remotePlayers[data.id]) {
+                            remotePlayers[data.id].dead = false;
+                            remotePlayers[data.id].ready = false;
+                        }
+                        if (data.id === "host") {
+                            player.dead = false;
+                            localClassSelected = false;
+                            document.getElementById('deathScreen').style.display = "none";
+                            document.getElementById('waitingScreen').style.display = "none";
+                            document.getElementById('lobbyScreen').style.display = "flex";
+                            gameState = "LOBBY";
+                            renderLobbyListHTML();
+                        }
+                        break;
+
+                    case "DISTRIBUTE_LOBBY_RETURN_CMD":
+                        player.dead = false;
+                        localClassSelected = false;
+                        document.getElementById('deathScreen').style.display = "none";
+                        document.getElementById('waitingScreen').style.display = "none";
+                        document.getElementById('lobbyScreen').style.display = "flex";
+                        gameState = "LOBBY";
+                        renderLobbyListHTML();
+                        break;
+
+                    case "ROOM_FULL_DISCONNECT":
+                        alert("The requested gaming room has reached max player limits.");
+                        disconnectP2PNetwork();
+                        break;
+                }
+            });
+
+            conn.on('close', () => {
+                netConnections = netConnections.filter(c => c !== conn);
+                triggerNotification("Connection Alert", "A node channel dropped off completely.", "#ff4444");
+                if (isHost) {
+                    rebuildRemotePlayersManifestFromActiveConns();
+                } else {
+                    // Host dropped: close down instance immediately
+                    alert("Host disconnected from stream.");
+                    disconnectP2PNetwork();
+                    gameState = "MENU";
+                    document.getElementById('lobbyScreen').style.display = "none";
+                    document.getElementById('stats').style.display = "none";
+                    document.getElementById('menu').style.display = "flex";
+                }
+            });
+        }
+
+        function broadcastP2PMessage(msgObject) {
+            netConnections.forEach(conn => {
+                if(conn.open) conn.send(msgObject);
+            });
+        }
+
+        function syncWholeLobbyManifestToAll() {
+            let manifest = {};
+            manifest[player.id] = { id: player.id, name: player.name, color: player.color, dead: false };
+            
+            Object.values(remotePlayers).forEach(p => {
+                manifest[p.id] = { id: p.id, name: p.name, color: p.color, dead: p.dead };
+            });
+
+            broadcastP2PMessage({
+                type: "MANIFEST_REFRESH",
+                list: manifest
+            });
+        }
+
+        function rebuildRemotePlayersManifestFromActiveConns() {
+            // Clean active maps to prevent trailing ghosts
+            let filteredList = {};
+            netConnections.forEach(c => {
+                const searchID = Object.keys(remotePlayers).find(key => c.peer === key);
+                if(searchID && remotePlayers[searchID]) {
+                    filteredList[searchID] = remotePlayers[searchID];
+                }
+            });
+            remotePlayers = filteredList;
+            syncWholeLobbyManifestToAll();
+            renderLobbyListHTML();
+        }
+
+        function renderLobbyListHTML() {
+            const listGridContainer = document.getElementById('lobbyPlayerList');
+            // Retain row layout headers cleanly
+            listGridContainer.innerHTML = '<div style="font-weight: bold; border-bottom: 1px solid #444; padding-bottom: 5px; color: #aaa;">Connected Survivors (Max 6)</div>';
+            
+            // 1. Render Local Player Row
+            const localRow = document.createElement('div');
+            localRow.className = 'lobby-player-row';
+            localRow.innerHTML = `<span><b>${player.name}</b> (You)</span> <div class="player-color-dot" style="background:${player.color};"></div>`;
+            listGridContainer.appendChild(localRow);
+
+            // 2. Render External Connected Players Rows
+            Object.values(remotePlayers).forEach(p => {
+                const row = document.createElement('div');
+                row.className = 'lobby-player-row';
+                row.innerHTML = `<span>${p.name}</span> <div class="player-color-dot" style="background:${p.color};"></div>`;
+                listGridContainer.appendChild(row);
+            });
+        }
+
+        function disconnectP2PNetwork() {
+            broadcastP2PMessage({ type: "ROOM_DISCONNECT_NOTICE", id: player.id });
+            
+            netConnections.forEach(c => c.close());
+            netConnections = [];
+            remotePlayers = {};
+            
+            if(peerInstance) {
+                peerInstance.destroy();
+                peerInstance = null;
+            }
+
+            localClassSelected = false;
+            document.getElementById('waitingScreen').style.display = "none";
+            isMultiplayer = false;
+            isHost = false;
+        }
+
+        // Initialize core engine loops
+        drawScene();
+    </script>
+</body>
+</html>

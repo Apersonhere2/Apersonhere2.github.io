@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Undead Massacre v1.4Beta3</title>
-    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <title>Undead Massacre v1.4Beta4</title>
     <style>
         /* FULL CSS RESET AND LAYOUT */
         body { 
@@ -466,7 +465,7 @@
         <button id="playBtn" class="game-button" style="font-size: 28px; padding: 20px 60px; margin-top: 30px;">START MASSACRE</button>
         <button id="viewBestBtn" class="game-button" style="margin-top: 20px; background: #880000; width: 300px;">Encyclopedia</button>
         <button id="viewAchBtn" class="game-button" style="margin-top: 15px; background: #333; width: 300px;">Achievements</button>
-        <div id="version">v1.4Beta3</div>
+        <div id="version">v1.4Beta4</div>
     </div>
 
     <div id="modeSelection" class="overlay">
@@ -498,28 +497,53 @@
     </div>
 
     <div id="lobbyScreen" class="overlay">
-        <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; justify-content:center;">
-            <h1 id="lobbyCodeDisplay" style="margin:0;">Lobby Room Code: Connecting...</h1>
-            <button id="copyCodeBtn" class="game-button" style="display:none; padding:10px 18px; font-size:14px; background:#555; box-shadow:0 3px 0 #333;">📋 Copy Code</button>
-        </div>
-        <h2 class="lobby-title" id="lobbyStatusText">Room Status: Setting up network lines...</h2>
-        
-        <div style="margin-top: 20px; background: #222; padding: 15px; border-radius: 8px;">
-            <label style="font-weight: bold; font-size: 18px; margin-right: 10px;">Customize Player Color: </label>
-            <input type="color" id="lobbyColorPicker" value="#007bff" style="cursor: pointer; vertical-align: middle;">
+        <h1 id="lobbyCodeDisplay" style="margin:0 0 4px;">Setting up...</h1>
+        <h2 class="lobby-title" id="lobbyStatusText">Initializing...</h2>
+
+        <div style="margin-top:14px; background:#222; padding:12px 16px; border-radius:8px;">
+            <label style="font-weight:bold; font-size:16px; margin-right:10px;">Player Color:</label>
+            <input type="color" id="lobbyColorPicker" value="#007bff" style="cursor:pointer; vertical-align:middle;">
         </div>
 
-        <div id="joinCodeForm" style="display: none; margin-top: 20px;">
-            <input type="text" id="joinRoomInput" class="lobby-input" placeholder="Paste Host Room Code Here"><br>
-            <button id="submitJoinCodeBtn" class="game-button">Establish Connection</button>
-        </div>
-
-        <div id="lobbyPlayerList">
-            <div style="font-weight: bold; border-bottom: 1px solid #444; padding-bottom: 5px; color: #aaa;">Connected Survivors (Max 6)</div>
+        <!-- HOST SIGNAL PANEL: paste a joining player's code, get a reply to send back -->
+        <div id="hostSignalPanel" style="display:none; margin-top:18px; width:100%; max-width:500px;">
+            <div style="background:#1a1a2e; border:1px solid #555; border-radius:8px; padding:14px;">
+                <p style="color:#aaa; margin:0 0 8px; font-size:14px;">📥 Paste a player's join code, then send them the reply:</p>
+                <textarea id="hostJoinCodeInput" rows="3" placeholder="Paste their join code here..." style="width:100%; box-sizing:border-box; background:#111; color:#fff; border:1px solid #444; border-radius:6px; padding:8px; font-size:12px; resize:vertical;"></textarea>
+                <button id="hostAcceptPlayerBtn" class="game-button" style="margin-top:8px;">Accept Player</button>
+                <div id="hostReplySection" style="display:none; margin-top:14px;">
+                    <p style="color:#00ff00; margin:0 0 8px; font-size:14px;">✔ Done! Send this reply back to them:</p>
+                    <textarea id="hostReplyBox" rows="3" readonly style="width:100%; box-sizing:border-box; background:#111; color:#fff; border:1px solid #444; border-radius:6px; padding:8px; font-size:12px; resize:vertical;"></textarea>
+                    <button id="hostCopyReplyBtn" class="game-button" style="margin-top:8px; background:#555; box-shadow:0 3px 0 #333;">📋 Copy Reply</button>
+                </div>
             </div>
+        </div>
 
-        <button id="lobbyStartGameBtn" class="game-button" style="font-size: 22px; padding: 15px 40px; display: none; background: #28a745; box-shadow: 0 4px 0 #1e7e34;">Launch Massacre</button>
-        <button id="lobbyLeaveBtn" class="game-button" style="margin-top: 15px; background: #444; box-shadow: 0 4px 0 #222;">Leave Room</button>
+        <!-- CLIENT SIGNAL PANEL: generate a join code, paste the host's reply -->
+        <div id="clientSignalPanel" style="display:none; margin-top:18px; width:100%; max-width:500px;">
+            <div id="clientStep1Panel">
+                <p style="color:#aaa;">⏳ Generating your join code, one moment...</p>
+            </div>
+            <div id="clientStep2Panel" style="display:none;">
+                <div style="background:#1a1a2e; border:1px solid #555; border-radius:8px; padding:14px; margin-bottom:12px;">
+                    <p style="color:#aaa; margin:0 0 8px; font-size:14px;">Step 1 — Copy this and send to the host:</p>
+                    <textarea id="clientJoinCodeBox" rows="3" readonly style="width:100%; box-sizing:border-box; background:#111; color:#fff; border:1px solid #444; border-radius:6px; padding:8px; font-size:12px; resize:vertical;"></textarea>
+                    <button id="clientCopyJoinBtn" class="game-button" style="margin-top:8px; background:#555; box-shadow:0 3px 0 #333;">📋 Copy Join Code</button>
+                </div>
+                <div style="background:#1a1a2e; border:1px solid #555; border-radius:8px; padding:14px;">
+                    <p style="color:#aaa; margin:0 0 8px; font-size:14px;">Step 2 — Paste the host's reply and connect:</p>
+                    <textarea id="clientHostReplyInput" rows="3" placeholder="Paste host reply here..." style="width:100%; box-sizing:border-box; background:#111; color:#fff; border:1px solid #444; border-radius:6px; padding:8px; font-size:12px; resize:vertical;"></textarea>
+                    <button id="clientConnectBtn" class="game-button" style="margin-top:8px;">🔗 Connect to Host</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="lobbyPlayerList" style="margin-top:16px;">
+            <div style="font-weight:bold; border-bottom:1px solid #444; padding-bottom:5px; color:#aaa;">Connected Survivors (Max 6)</div>
+        </div>
+
+        <button id="lobbyStartGameBtn" class="game-button" style="font-size:22px; padding:15px 40px; display:none; background:#28a745; box-shadow:0 4px 0 #1e7e34;">Launch Massacre</button>
+        <button id="lobbyLeaveBtn" class="game-button" style="margin-top:15px; background:#444; box-shadow:0 4px 0 #222;">Leave Room</button>
     </div>
 
     <div id="classSelection" class="overlay">
@@ -702,28 +726,29 @@
         
         let mouseX = 0, mouseY = 0, mouseIsPressed = false;
 
-        /* NEW NETWORKING ARCHITECTURE CHANNELS */
-        // ICE servers — STUN for peer discovery, TURN as fallback relay for strict NAT routers.
-        // OpenRelay is a free public TURN service (openrelay.metered.ca), no signup needed.
+
+        /* =========================================================
+           SERVERLESS WEBRTC MULTIPLAYER — NO BROKER REQUIRED
+           Players exchange short codes via Discord/chat to connect.
+           STUN + TURN handles NAT traversal with no rate limits.
+           ========================================================= */
         const ICE_CONFIG = {
             iceServers: [
                 { urls: "stun:stun.l.google.com:19302" },
                 { urls: "stun:stun1.l.google.com:19302" },
                 { urls: "stun:openrelay.metered.ca:80" },
-                { urls: "turn:openrelay.metered.ca:80",      username: "openrelayproject", credential: "openrelayproject" },
-                { urls: "turn:openrelay.metered.ca:443",     username: "openrelayproject", credential: "openrelayproject" },
-                { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" }
-            ],
-            iceCandidatePoolSize: 10
+                { urls: "turn:openrelay.metered.ca:80",               username: "openrelayproject", credential: "openrelayproject" },
+                { urls: "turn:openrelay.metered.ca:443",              username: "openrelayproject", credential: "openrelayproject" },
+                { urls: "turn:openrelay.metered.ca:443?transport=tcp",username: "openrelayproject", credential: "openrelayproject" }
+            ]
         };
 
         let isMultiplayer = false;
         let isHost = false;
-        let peerInstance = null;
-        let netConnections = []; // Holds references to connected communication links
-        let remotePlayers = {};  // Stores live key-value status dictionary of connected allies
-        let myLobbyPeerID = "";
-        let mpLobbySeed = 12345;  // To make sure environmental maps synchronize flawlessly across machines
+        let netConnections = [];    // { send, close, on } wrappers around RTCDataChannels
+        let peerConnections = [];   // raw RTCPeerConnection objects (for cleanup)
+        let remotePlayers  = {};
+        let mpLobbySeed    = 12345;
 
         // Spectator System data properties
         let activeSpectatorTargetID = null;
@@ -782,25 +807,17 @@
 
         // 3. Hosting vs Joining Setup
         document.getElementById('chooseHost').onclick = () => {
-            isHost = true;
+            isMultiplayer = true;
             player.name = "Host";
             document.getElementById('mpSelection').style.display = "none";
-            document.getElementById('lobbyScreen').style.display = "flex";
-            document.getElementById('joinCodeForm').style.display = "none";
-            document.getElementById('lobbyStartGameBtn').style.display = "block";
-            initializePeerConnectionChannel();
+            initializePeerConnectionChannel(true);
         };
 
         document.getElementById('chooseJoin').onclick = () => {
-            isHost = false;
+            isMultiplayer = true;
             player.name = "Guest_" + Math.floor(Math.random() * 900 + 100);
             document.getElementById('mpSelection').style.display = "none";
-            document.getElementById('lobbyScreen').style.display = "flex";
-            document.getElementById('joinCodeForm').style.display = "block";
-            document.getElementById('lobbyStartGameBtn').style.display = "none";
-            document.getElementById('lobbyCodeDisplay').innerText = "Join Setup Status Grid";
-            document.getElementById('lobbyStatusText').innerText = "Awaiting Room Key Input Entry Parameters...";
-            renderLobbyListHTML();
+            initializePeerConnectionChannel(false);
         };
 
         // Color picking inside the lobby system tracking listeners
@@ -817,34 +834,12 @@
             }
         };
 
-        // Submission Event for Room Codes
-        document.getElementById('submitJoinCodeBtn').onclick = () => {
-            const codeInput = document.getElementById('joinRoomInput').value.trim();
-            if(!codeInput) return alert("Please enter a valid connection code.");
-            
-            document.getElementById('lobbyStatusText').innerText = "Connecting to Host Node System...";
-            initializePeerConnectionChannel(codeInput);
-        };
-
         // Leaving Lobby Routing
         document.getElementById('lobbyLeaveBtn').onclick = () => {
             disconnectP2PNetwork();
             document.getElementById('lobbyScreen').style.display = "none";
             document.getElementById('menu').style.display = "flex";
             gameState = "MENU";
-        };
-
-        // Copy room code to clipboard
-        document.getElementById('copyCodeBtn').onclick = () => {
-            navigator.clipboard.writeText(myLobbyPeerID).then(() => {
-                const btn = document.getElementById('copyCodeBtn');
-                btn.innerText = '✔ Copied!';
-                btn.style.background = '#28a745';
-                setTimeout(() => {
-                    btn.innerText = '📋 Copy Code';
-                    btn.style.background = '#555';
-                }, 2000);
-            });
         };
 
         // Launch Game Trigger Event handled exclusively by Room Host
@@ -1928,96 +1923,172 @@
 
 
         /* =========================================================================
-           --- AUTHORITATIVE SERVERLESS WEBRTC MULTIPLAYER MATCH ENGINE MAPPING ---
+           SERVERLESS WEBRTC — NO BROKER SERVER REQUIRED
+           Host and client exchange short base64 codes (via Discord/text).
+           Each code is a complete SDP + ICE candidate blob.
+           No rate limits, no third-party accounts, works through any NAT.
            ========================================================================= */
 
-        let _peerRetryCount = 0;
-        const MAX_PEER_RETRIES = 4;
-
-        // Explicit PeerJS broker config — forces WSS on port 443 which gets through
-        // most firewalls and is required when the game is served over HTTPS.
-        const PEER_SERVER_CONFIG = {
-            host: '0.peerjs.com',
-            secure: true,
-            port: 443,
-            config: ICE_CONFIG
-        };
-
-        function initializePeerConnectionChannel(targetRoomCode = null) {
-            disconnectP2PNetwork();
-            isMultiplayer = true;
-            isHost = (targetRoomCode === null);
-            _peerRetryCount = 0;
-            _attemptPeerInit(targetRoomCode);
+        // Wrap a raw RTCDataChannel + RTCPeerConnection into the same
+        // { send, close, on } interface the rest of the code already uses.
+        function wrapDataChannel(dc, pc) {
+            const handlers = {};
+            dc.onopen    = ()  => handlers.open  && handlers.open();
+            dc.onmessage = (e) => handlers.data  && handlers.data(JSON.parse(e.data));
+            dc.onclose   = ()  => handlers.close && handlers.close();
+            pc.onconnectionstatechange = () => {
+                if (['disconnected','failed','closed'].includes(pc.connectionState)) {
+                    handlers.close && handlers.close();
+                }
+            };
+            return {
+                send:  (data) => { if (dc.readyState === 'open') dc.send(JSON.stringify(data)); },
+                close: ()     => { try { pc.close(); } catch(e) {} },
+                on:    (evt, fn) => { handlers[evt] = fn; }
+            };
         }
 
-        function _attemptPeerInit(targetRoomCode) {
-            const isHostAttempt = (targetRoomCode === null);
-
-            if (isHostAttempt) {
-                player.id = "host_" + Math.floor(Math.random() * 89999 + 10000);
-            } else {
-                player.id = "client_" + Math.floor(Math.random() * 89999 + 10000);
-            }
-
-            if (peerInstance) { peerInstance.destroy(); peerInstance = null; }
-            peerInstance = new Peer(player.id, PEER_SERVER_CONFIG);
-
-            // Shared retry/error handler used by both host and client
-            peerInstance.on('error', (err) => {
-                const retryable = (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error' || err.type === 'socket-closed');
-                if (retryable && _peerRetryCount < MAX_PEER_RETRIES) {
-                    _peerRetryCount++;
-                    const waitSec = _peerRetryCount * 2;
-                    document.getElementById('lobbyStatusText').innerText =
-                        `Matchmaking server hiccup — retrying in ${waitSec}s... (${_peerRetryCount}/${MAX_PEER_RETRIES})`;
-                    peerInstance.destroy();
-                    peerInstance = null;
-                    setTimeout(() => _attemptPeerInit(targetRoomCode), waitSec * 1000);
-                    return;
-                }
-
-                // Non-retryable or out of retries — show a clear message
-                let msg;
-                if (err.type === 'peer-unavailable')      msg = "Room code not found. Ask the host to double-check and resend it.";
-                else if (err.type === 'webrtc')           msg = "WebRTC blocked by your browser. Try Chrome or Edge.";
-                else if (err.type === 'browser-incompatible') msg = "Your browser doesn't support WebRTC. Please use Chrome or Edge.";
-                else if (retryable)                       msg = "Matchmaking server unreachable after several retries. Try again in a minute.";
-                else                                      msg = `Connection error (${err.type}). Make sure the game is hosted on GitHub Pages (not opened as a local file).`;
-
-                document.getElementById('lobbyStatusText').innerText = "Status: " + msg;
-                alert(msg);
-            });
-
-            if (isHostAttempt) {
-                peerInstance.on('open', (id) => {
-                    _peerRetryCount = 0;
-                    myLobbyPeerID = id;
-                    document.getElementById('lobbyCodeDisplay').innerText = `Room Code: ${id}`;
-                    document.getElementById('lobbyStatusText').innerText = "Status: Waiting for squads to connect...";
-                    document.getElementById('copyCodeBtn').style.display = "inline-block";
-                    renderLobbyListHTML();
-                });
-
-                peerInstance.on('connection', (conn) => {
-                    if (netConnections.length >= 5) {
-                        conn.on('open', () => {
-                            conn.send({ type: "ROOM_FULL_DISCONNECT" });
-                            setTimeout(() => conn.close(), 500);
-                        });
-                        return;
+        // Wait until all ICE candidates are gathered (non-trickle mode).
+        // This embeds candidates into the SDP so the whole offer/answer
+        // is a single self-contained blob — no separate candidate exchange needed.
+        function waitForICEGathering(pc) {
+            return new Promise(resolve => {
+                if (pc.iceGatheringState === 'complete') { resolve(); return; }
+                const onStateChange = () => {
+                    if (pc.iceGatheringState === 'complete') {
+                        pc.removeEventListener('icegatheringstatechange', onStateChange);
+                        resolve();
                     }
-                    setupNetworkTrafficRouting(conn);
-                });
+                };
+                pc.addEventListener('icegatheringstatechange', onStateChange);
+                setTimeout(resolve, 8000); // safety: give up waiting after 8s
+            });
+        }
+
+        function encodeSignal(desc) { return btoa(JSON.stringify({ type: desc.type, sdp: desc.sdp })); }
+        function decodeSignal(str)  { return JSON.parse(atob(str.trim())); }
+
+        function initializePeerConnectionChannel(asHost) {
+            disconnectP2PNetwork();
+            isMultiplayer = true;
+            isHost = asHost;
+
+            document.getElementById('lobbyScreen').style.display = "flex";
+            document.getElementById('lobbyPlayerList').innerHTML =
+                '<div style="font-weight:bold; border-bottom:1px solid #444; padding-bottom:5px; color:#aaa;">Connected Survivors (Max 6)</div>';
+
+            if (asHost) {
+                player.id = "host_" + Math.floor(Math.random() * 89999 + 10000);
+                document.getElementById('lobbyCodeDisplay').innerText = "You are the Host";
+                document.getElementById('lobbyStatusText').innerText  = "Status: Share this lobby with friends using the panel below.";
+                document.getElementById('lobbyStartGameBtn').style.display = "block";
+                document.getElementById('hostSignalPanel').style.display   = "block";
+                renderLobbyListHTML();
+
+                // HOST: receives a client's join code → sends back a reply code
+                document.getElementById('hostAcceptPlayerBtn').onclick = async () => {
+                    const raw = document.getElementById('hostJoinCodeInput').value.trim();
+                    if (!raw) { alert("Paste the player's join code first."); return; }
+                    if (netConnections.length >= 5) { alert("Room is full (max 6 players)."); return; }
+
+                    document.getElementById('lobbyStatusText').innerText = "Processing join code...";
+                    document.getElementById('hostReplySection').style.display = "none";
+
+                    try {
+                        const offerDesc = decodeSignal(raw);
+                        const pc = new RTCPeerConnection(ICE_CONFIG);
+                        peerConnections.push(pc);
+
+                        // Data channel arrives from client
+                        pc.ondatachannel = (evt) => {
+                            const conn = wrapDataChannel(evt.channel, pc);
+                            setupNetworkTrafficRouting(conn);
+                        };
+
+                        await pc.setRemoteDescription(offerDesc);
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
+                        await waitForICEGathering(pc);
+
+                        const encodedAnswer = encodeSignal(pc.localDescription);
+                        document.getElementById('hostJoinCodeInput').value = '';
+                        document.getElementById('hostReplyBox').value = encodedAnswer;
+                        document.getElementById('hostReplySection').style.display = "block";
+                        document.getElementById('lobbyStatusText').innerText = "Status: Waiting for player to finish connecting...";
+                    } catch(e) {
+                        document.getElementById('lobbyStatusText').innerText = "Status: Invalid join code — make sure they copied the whole thing.";
+                        console.error(e);
+                    }
+                };
+
+                document.getElementById('hostCopyReplyBtn').onclick = () => {
+                    navigator.clipboard.writeText(document.getElementById('hostReplyBox').value).then(() => {
+                        const btn = document.getElementById('hostCopyReplyBtn');
+                        btn.innerText = '✔ Copied!';
+                        btn.style.background = '#28a745';
+                        setTimeout(() => { btn.innerText = '📋 Copy Reply'; btn.style.background = '#555'; }, 2000);
+                    });
+                };
 
             } else {
-                peerInstance.on('open', (id) => {
-                    _peerRetryCount = 0;
-                    myLobbyPeerID = id;
-                    document.getElementById('lobbyStatusText').innerText = "Connected to broker — linking to host...";
-                    const connectionLink = peerInstance.connect(targetRoomCode, { reliable: true });
-                    setupNetworkTrafficRouting(connectionLink);
-                });
+                // CLIENT: auto-generates a join code → pastes host's reply → connects
+                player.id = "client_" + Math.floor(Math.random() * 89999 + 10000);
+                document.getElementById('lobbyCodeDisplay').innerText = "Joining Game...";
+                document.getElementById('lobbyStatusText').innerText  = "Status: Generating your join code...";
+                document.getElementById('clientSignalPanel').style.display = "block";
+                document.getElementById('clientStep1Panel').style.display  = "block";
+                document.getElementById('clientStep2Panel').style.display  = "none";
+
+                (async () => {
+                    try {
+                        const pc = new RTCPeerConnection(ICE_CONFIG);
+                        peerConnections.push(pc);
+
+                        // Client creates the data channel
+                        const dc = pc.createDataChannel('game', { ordered: true });
+
+                        const offer = await pc.createOffer();
+                        await pc.setLocalDescription(offer);
+                        await waitForICEGathering(pc);
+
+                        const encodedOffer = encodeSignal(pc.localDescription);
+                        document.getElementById('clientJoinCodeBox').value   = encodedOffer;
+                        document.getElementById('clientStep1Panel').style.display = "none";
+                        document.getElementById('clientStep2Panel').style.display = "block";
+                        document.getElementById('lobbyStatusText').innerText  = "Status: Copy your join code and send it to the host.";
+
+                        // Copy join code button
+                        document.getElementById('clientCopyJoinBtn').onclick = () => {
+                            navigator.clipboard.writeText(encodedOffer).then(() => {
+                                const btn = document.getElementById('clientCopyJoinBtn');
+                                btn.innerText = '✔ Copied!';
+                                btn.style.background = '#28a745';
+                                setTimeout(() => { btn.innerText = '📋 Copy Join Code'; btn.style.background = '#555'; }, 2000);
+                            });
+                        };
+
+                        // Connect button — processes the host's reply
+                        document.getElementById('clientConnectBtn').onclick = async () => {
+                            const raw = document.getElementById('clientHostReplyInput').value.trim();
+                            if (!raw) { alert("Paste the host's reply code first."); return; }
+                            try {
+                                const answerDesc = decodeSignal(raw);
+                                await pc.setRemoteDescription(answerDesc);
+                                const conn = wrapDataChannel(dc, pc);
+                                setupNetworkTrafficRouting(conn);
+                                document.getElementById('clientSignalPanel').style.display = "none";
+                                document.getElementById('lobbyStatusText').innerText = "Status: Connecting to host...";
+                            } catch(e) {
+                                alert("Invalid reply code — make sure you copied the whole thing.");
+                                console.error(e);
+                            }
+                        };
+
+                    } catch(e) {
+                        document.getElementById('lobbyStatusText').innerText = "Status: WebRTC error. Use Chrome or Edge on HTTPS (GitHub Pages).";
+                        console.error(e);
+                    }
+                })();
             }
         }
 
@@ -2303,19 +2374,20 @@
 
         function disconnectP2PNetwork() {
             broadcastP2PMessage({ type: "ROOM_DISCONNECT_NOTICE", id: player.id });
-            
-            netConnections.forEach(c => c.close());
-            netConnections = [];
-            remotePlayers = {};
-            
-            if(peerInstance) {
-                peerInstance.destroy();
-                peerInstance = null;
-            }
 
+            netConnections.forEach(c => { try { c.close(); } catch(e) {} });
+            netConnections = [];
+
+            peerConnections.forEach(pc => { try { pc.close(); } catch(e) {} });
+            peerConnections = [];
+
+            remotePlayers = {};
             localClassSelected = false;
-            document.getElementById('waitingScreen').style.display = "none";
-            document.getElementById('copyCodeBtn').style.display = "none";
+
+            document.getElementById('waitingScreen').style.display   = "none";
+            document.getElementById('hostSignalPanel').style.display  = "none";
+            document.getElementById('clientSignalPanel').style.display = "none";
+
             isMultiplayer = false;
             isHost = false;
         }

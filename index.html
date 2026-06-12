@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Undead Massacre v1.4Beta4</title>
+    <title>Undead Massacre v1.4Beta5</title>
     <style>
         /* FULL CSS RESET AND LAYOUT */
         body { 
@@ -465,7 +465,7 @@
         <button id="playBtn" class="game-button" style="font-size: 28px; padding: 20px 60px; margin-top: 30px;">START MASSACRE</button>
         <button id="viewBestBtn" class="game-button" style="margin-top: 20px; background: #880000; width: 300px;">Encyclopedia</button>
         <button id="viewAchBtn" class="game-button" style="margin-top: 15px; background: #333; width: 300px;">Achievements</button>
-        <div id="version">v1.4Beta4</div>
+        <div id="version">v1.4Beta5</div>
     </div>
 
     <div id="modeSelection" class="overlay">
@@ -912,7 +912,7 @@
             Object.values(remotePlayers).forEach(p => {
                 const row = document.createElement('div');
                 row.className = 'lobby-player-row';
-                row.innerHTML = `<span>${p.name}</span> <span style="color:${p.ready ? '#00ff00' : '#aaa'};">${p.ready ? 'Ready' : 'Picking...'}</span>`;
+                row.innerHTML = `<span>${p.name}</span> <span style="color:${p.ready ? '#00ff00' : '#aaa'};">${p.ready ? '✔ Ready' : '⏳ Picking...'}</span>`;
                 list.appendChild(row);
             });
         }
@@ -1935,17 +1935,26 @@
             const handlers = {};
             dc.onopen    = ()  => handlers.open  && handlers.open();
             dc.onmessage = (e) => handlers.data  && handlers.data(JSON.parse(e.data));
-            dc.onclose   = ()  => handlers.close && handlers.close();
+
+            // Only treat truly terminal states as a close — 'disconnected' is
+            // transient and can recover on its own during ICE negotiation.
             pc.onconnectionstatechange = () => {
-                if (['disconnected','failed','closed'].includes(pc.connectionState)) {
+                if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
                     handlers.close && handlers.close();
                 }
             };
-            return {
-                send:  (data) => { if (dc.readyState === 'open') dc.send(JSON.stringify(data)); },
+
+            const wrapper = {
+                // 'open' is checked by broadcastP2PMessage before every send —
+                // must reflect the actual data channel state.
+                get open() { return dc.readyState === 'open'; },
+                send:  (data) => {
+                    if (dc.readyState === 'open') dc.send(JSON.stringify(data));
+                },
                 close: ()     => { try { pc.close(); } catch(e) {} },
                 on:    (evt, fn) => { handlers[evt] = fn; }
             };
+            return wrapper;
         }
 
         // Wait until all ICE candidates are gathered (non-trickle mode).
@@ -1961,7 +1970,7 @@
                     }
                 };
                 pc.addEventListener('icegatheringstatechange', onStateChange);
-                setTimeout(resolve, 8000); // safety: give up waiting after 8s
+                setTimeout(resolve, 15000); // safety: give up waiting after 15s
             });
         }
 
@@ -2005,16 +2014,18 @@
                             setupNetworkTrafficRouting(conn);
                         };
 
+                        document.getElementById('lobbyStatusText').innerText = "Processing join code...";
                         await pc.setRemoteDescription(offerDesc);
                         const answer = await pc.createAnswer();
                         await pc.setLocalDescription(answer);
+                        document.getElementById('lobbyStatusText').innerText = "Gathering connection routes (up to 15s)...";
                         await waitForICEGathering(pc);
 
                         const encodedAnswer = encodeSignal(pc.localDescription);
                         document.getElementById('hostJoinCodeInput').value = '';
                         document.getElementById('hostReplyBox').value = encodedAnswer;
                         document.getElementById('hostReplySection').style.display = "block";
-                        document.getElementById('lobbyStatusText').innerText = "Status: Waiting for player to finish connecting...";
+                        document.getElementById('lobbyStatusText').innerText = "Status: Reply ready! Send it to your friend then wait.";
                     } catch(e) {
                         document.getElementById('lobbyStatusText').innerText = "Status: Invalid join code — make sure they copied the whole thing.";
                         console.error(e);
@@ -2026,7 +2037,7 @@
                         const btn = document.getElementById('hostCopyReplyBtn');
                         btn.innerText = '✔ Copied!';
                         btn.style.background = '#28a745';
-                        setTimeout(() => { btn.innerText = 'Copy Reply'; btn.style.background = '#555'; }, 2000);
+                        setTimeout(() => { btn.innerText = '📋 Copy Reply'; btn.style.background = '#555'; }, 2000);
                     });
                 };
 
@@ -2047,6 +2058,7 @@
                         // Client creates the data channel
                         const dc = pc.createDataChannel('game', { ordered: true });
 
+                        document.getElementById('lobbyStatusText').innerText  = "Status: Gathering connection routes (up to 15s)...";
                         const offer = await pc.createOffer();
                         await pc.setLocalDescription(offer);
                         await waitForICEGathering(pc);
@@ -2061,9 +2073,9 @@
                         document.getElementById('clientCopyJoinBtn').onclick = () => {
                             navigator.clipboard.writeText(encodedOffer).then(() => {
                                 const btn = document.getElementById('clientCopyJoinBtn');
-                                btn.innerText = 'Copied!';
+                                btn.innerText = '✔ Copied!';
                                 btn.style.background = '#28a745';
-                                setTimeout(() => { btn.innerText = 'Copy Join Code'; btn.style.background = '#555'; }, 2000);
+                                setTimeout(() => { btn.innerText = '📋 Copy Join Code'; btn.style.background = '#555'; }, 2000);
                             });
                         };
 
